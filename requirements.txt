@@ -5,3 +5,5 @@ pytest==7.4.0
 flake8==6.0.0
 bandit==1.7.4
 requests==2.31.0
+python-multipart==0.0.6
+httpx==0.24.1

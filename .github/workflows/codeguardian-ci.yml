@@ -34,11 +34,13 @@ jobs:
 
     # Step 4: Lint code
     - name: Lint with flake8
-      run: flake8 backend/ frontend/ tests/
+      run: flake8 agent/ app/ tests/
+
 
     # Step 5: Check formatting
     - name: Check formatting with black
-      run: black --check backend/ frontend/ tests/
+      run: black --check agent/ app/ tests/
+
 
     # Step 6: Run unit tests
     - name: Run tests with pytest
