@@ -17,13 +17,22 @@ class AgentEngine:
         # naive pattern checks
         if "API_KEY" in content or "aws_access_key_id" in content:
             hint = self.retriever.lookup("hardcoded secret")
-            return {"issue": "Hardcoded secret detected", "suggestion": hint}
+            return {
+                "issue": "Hardcoded secret detected",
+                "suggestion": hint,
+            }
 
         if "SELECT" in content and "+" in content:
             hint = self.retriever.lookup("sql injection")
-            return {"issue": "Possible SQL concatenation", "suggestion": hint}
+            return {
+                "issue": "Possible SQL concatenation",
+                "suggestion": hint,
+            }
 
-        return {"issue": "No obvious issues found", "suggestion": "No action required"}
+        return {
+            "issue": "No obvious issues found",
+            "suggestion": "No action required",
+        }
 
 
 engine = AgentEngine()
