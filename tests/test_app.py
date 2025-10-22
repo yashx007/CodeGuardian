@@ -15,13 +15,13 @@ def test_health():
 
 
 def test_scan_hardcoded_secret():
-    code = "api_key = \"API_KEY=abcd1234\"\n"
+    code = 'api_key = "API_KEY=abcd1234"\n'
     files = {
         "file": (
             "secrets.py",
             io.BytesIO(code.encode("utf-8")),
             "text/plain",
-        )
+        ),
     }
     r = client.post("/scan", files=files)
     assert r.status_code == 200
