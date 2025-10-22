@@ -1,0 +1,5 @@
+black==24.7.0
+flake8==6.0.0
+mypy==1.7.0
+bandit==1.7.4
+safety==2.3.0

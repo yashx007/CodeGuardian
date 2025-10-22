@@ -1,0 +1,69 @@
+# Python virtual environment
+.venv/
+venv/
+env/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# PyBuilder
+target/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs and runtime files
+*.log
+logs/
+tmp/
+
+# Secrets and credentials
+.env
+*.pem
+*.key
+*.crt
+
+# Streamlit cache
+.streamlit/
+
+# GitHub Actions artifacts
+.github/workflows/*.local
+
+# Node / JS (if any)
+node_modules/
+npm-debug.log
+
+# Misc
+*.sqlite3
