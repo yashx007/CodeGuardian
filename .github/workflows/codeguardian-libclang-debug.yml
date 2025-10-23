@@ -9,6 +9,8 @@ on:
 jobs:
   debug-libclang:
     runs-on: ubuntu-latest
+    env:
+      CODEGUARDIAN_DEBUG: '1'
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -21,13 +23,13 @@ jobs:
           sudo apt-get install -y clang libclang-dev
       - name: Install pip deps
         run: python -m pip install -r requirements.txt
-      - name: Run tests with CODEGUARDIAN_DEBUG
-        env:
-          CODEGUARDIAN_DEBUG: '1'
+      - name: Run tests
         run: python -m pytest -q
   windows-debug:
     runs-on: windows-latest
     needs: debug-libclang
+    env:
+      CODEGUARDIAN_DEBUG: '1'
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -52,16 +54,15 @@ jobs:
           if (Test-Path libclang_path.txt) {
             $p = Get-Content libclang_path.txt | Select-Object -First 1
             $dir = Split-Path $p
-            echo "Adding $dir to PATH"
-            echo "::add-path::$dir"
+            Write-Output "Adding $dir to PATH"
+            # use the Actions env file mechanism to add to PATH
+            "$dir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           } else {
-            echo "libclang DLL not found; continuing without explicit PATH change"
+            Write-Output "libclang DLL not found; continuing without explicit PATH change"
           }
       - name: Install pip deps
         run: python -m pip install -r requirements.txt
-      - name: Run tests with CODEGUARDIAN_DEBUG on Windows
-        env:
-          CODEGUARDIAN_DEBUG: '1'
+      - name: Run tests on Windows
         run: python -m pytest -q --maxfail=1 --disable-warnings -k "not slow"
       - name: Upload debug logs
         if: always()
