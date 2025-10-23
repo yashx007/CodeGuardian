@@ -54,14 +54,14 @@ jobs:
         run: |
           if (Test-Path libclang_path.txt) { Get-Content libclang_path.txt | Write-Output } else { Write-Output 'no-libclang-found' }
       - name: Set PATH for libclang if found
-        shell: powershell
+        shell: pwsh
         run: |
           if (Test-Path libclang_path.txt) {
             $p = Get-Content libclang_path.txt | Select-Object -First 1
             $dir = Split-Path $p
             Write-Output "Adding $dir to PATH"
-            # use the Actions env file mechanism to add to PATH
-            Add-Content -Path $env:GITHUB_ENV -Value $dir
+            # Append the directory to the runner PATH via $GITHUB_PATH (PowerShell safe)
+            $dir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           } else {
             Write-Output "libclang DLL not found; continuing without explicit PATH change"
           }
