@@ -43,7 +43,12 @@ jobs:
       - name: Find libclang DLL
         shell: powershell
         run: |
-          python scripts\find_libclang_windows.py > libclang_path.txt || exit 0
+          try {
+            python scripts\find_libclang_windows.py > libclang_path.txt
+          } catch {
+            Write-Output "find_libclang errored; continuing without failing the job"
+            exit 0
+          }
       - name: Dump libclang path
         shell: powershell
         run: |
@@ -56,7 +61,7 @@ jobs:
             $dir = Split-Path $p
             Write-Output "Adding $dir to PATH"
             # use the Actions env file mechanism to add to PATH
-            "$dir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            Add-Content -Path $env:GITHUB_ENV -Value $dir
           } else {
             Write-Output "libclang DLL not found; continuing without explicit PATH change"
           }
