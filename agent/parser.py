@@ -7,6 +7,7 @@ Features:
 
 Each issue is a dict with keys: type, line, snippet, message
 """
+
 from __future__ import annotations
 
 import ast
