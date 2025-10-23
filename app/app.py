@@ -1,23 +1,14 @@
-"""FastAPI application for CodeGuardian minimal scaffold with an uploader UI.
 
-Supports:
-- single or multiple file uploads (text files, .py/.js/.c/.cpp),
-- archive uploads (.zip, .tar, .tgz) which are extracted and scanned,
-- pasted code via a textarea,
-- fetch from a URL (server-side fetch) — optional, may fail if network blocked.
-
-The endpoint `/upload` accepts any of the above and returns JSON with scan results.
-"""
-
-from fastapi import FastAPI, UploadFile, File, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse
-from pydantic import BaseModel
 from typing import List, Optional
 import io
 import zipfile
 import tarfile
 import asyncio
 import urllib.request
+
+from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import BaseModel
 
 from agent.engine import engine
 
@@ -132,7 +123,9 @@ async def _fetch_url_content(url: str) -> Optional[bytes]:
     except Exception:
         try:
             # fallback to sync urllib in thread
-            return await asyncio.to_thread(lambda: urllib.request.urlopen(url, timeout=10).read())
+            return await asyncio.to_thread(
+                lambda: urllib.request.urlopen(url, timeout=10).read()
+            )
         except Exception:
             return None
 
@@ -140,14 +133,25 @@ async def _fetch_url_content(url: str) -> Optional[bytes]:
 def _scan_and_pack(filename: str, content: str):
     try:
         res = engine.scan_code(filename, content)
-        return {"filename": filename, "issue": res.get('issue'), "suggestion": res.get('suggestion')}
+        return {
+            "filename": filename,
+            "issue": res.get('issue'),
+            "suggestion": res.get('suggestion'),
+        }
     except Exception as e:
         return {"filename": filename, "error": str(e)}
 
 
-@app.post('/upload')
-async def upload(files: List[UploadFile] = File(None), code: str = Form(None), filename: str = Form(None), url: str = Form(None)):
-    """Accept multiple upload modes: files (single/multiple/archives), pasted code, or a URL."""
+@app.post("/upload")
+async def upload(
+    files: List[UploadFile] = File(None),
+    code: str = Form(None),
+    filename: str = Form(None),
+    url: str = Form(None),
+):
+    """Accept multiple upload modes: files (single/multiple/archives), pasted
+    code, or a URL.
+    """
     results = []
 
     # Process uploaded files if any
@@ -176,7 +180,10 @@ async def upload(files: List[UploadFile] = File(None), code: str = Form(None), f
                         with tarfile.open(fileobj=io.BytesIO(data)) as t:
                             for member in t.getmembers():
                                 if member.isreg():
-                                    b = t.extractfile(member).read()
+                                    fh = t.extractfile(member)
+                                    if fh is None:
+                                        continue
+                                    b = fh.read()
                                     try:
                                         text = b.decode('utf-8', errors='ignore')
                                     except Exception:
