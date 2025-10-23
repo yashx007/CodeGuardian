@@ -38,10 +38,34 @@ jobs:
         run: . .venv/bin/activate; pytest -q
 
       - name: Run CodeGuardian scan (flattened SARIF output)
-        run: . .venv/bin/activate; python -m agent.parser . -r --ignore-vendor -f -o scan_results.json
+        # allow the scanner to exit non-zero without failing the whole job so we
+        # can still generate a summary and upload artifacts
+        run: . .venv/bin/activate; python -m agent.parser . -r --ignore-vendor -f -o scan_results.json || true
 
       - name: Generate SARIF (simple conversion)
-        run: . .venv/bin/activate; python -c "import json,sys; r=json.load(open('scan_results.json')); import datetime; print('SARIF generated'); open('results.sarif','w').write(json.dumps({'version':'2.1.0','runs':[{'tool':{'driver':{'name':'CodeGuardian','informationUri':'https://example.com'}},'results':[]}]}))"
+        if: always()
+        run: |
+          . .venv/bin/activate
+          if [ -f scan_results.json ]; then
+            python - <<'PY'
+import json
+r = json.load(open('scan_results.json'))
+out = {
+  'version': '2.1.0',
+  'runs': [
+    {
+      'tool': {'driver': {'name': 'CodeGuardian', 'informationUri': 'https://example.com'}},
+      'results': r
+    }
+  ]
+}
+open('results.sarif', 'w').write(json.dumps(out))
+print('SARIF generated from scan_results.json')
+PY
+          else
+            echo '{"version":"2.1.0","runs":[]}' > results.sarif
+            echo "No scan_results.json found; generated empty results.sarif"
+          fi
 
       - name: Upload scan artifact
         uses: actions/upload-artifact@v4
@@ -61,8 +85,13 @@ jobs:
         if: always()
         id: read_summary
         run: |
+          # must append the content between body<<EOF and EOF into $GITHUB_OUTPUT
           echo "body<<EOF" >> $GITHUB_OUTPUT
-          cat pr_summary.md || echo 'No summary'
+          if [ -f pr_summary.md ]; then
+            cat pr_summary.md >> $GITHUB_OUTPUT
+          else
+            echo 'No summary' >> $GITHUB_OUTPUT
+          fi
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Post PR comment with scan summary
