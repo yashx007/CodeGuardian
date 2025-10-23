@@ -1,0 +1,11 @@
+{
+  "name": "codeguardian-js-parser",
+  "version": "0.1.0",
+  "description": "Helper package to install esprima for CodeGuardian JS parsing",
+  "scripts": {
+    "install-esprima": "npm install esprima --no-audit --no-fund"
+  },
+  "dependencies": {
+    "esprima": "^4.0.1"
+  }
+}
