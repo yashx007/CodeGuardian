@@ -37,21 +37,25 @@ def _load_source(file_path: Path) -> str:
 # Config: number of context lines to include around extents when extracting snippets.
 # Can be overridden via environment variable CODEGUARDIAN_SNIPPET_CONTEXT or by setting
 # parser.SNIPPET_CONTEXT at runtime.
-SNIPPET_CONTEXT = int(os.environ.get('CODEGUARDIAN_SNIPPET_CONTEXT', '1'))
+SNIPPET_CONTEXT = int(os.environ.get("CODEGUARDIAN_SNIPPET_CONTEXT", "1"))
 
 # Setup simple debug logger for parser. Set CODEGUARDIAN_DEBUG=1 to enable debug logging.
-logger = logging.getLogger('codeguardian.parser')
+logger = logging.getLogger("codeguardian.parser")
 if not logger.handlers:
     h = logging.StreamHandler()
-    h.setFormatter(logging.Formatter('%(asctime)s %(levelname)s codeguardian.parser: %(message)s'))
+    h.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s codeguardian.parser: %(message)s")
+    )
     logger.addHandler(h)
-if os.environ.get('CODEGUARDIAN_DEBUG', '') in ('1', 'true', 'True'):
+if os.environ.get("CODEGUARDIAN_DEBUG", "") in ("1", "true", "True"):
     logger.setLevel(logging.DEBUG)
 else:
     logger.setLevel(logging.INFO)
 
 
-def detect_insecure_functions(tree: ast.AST, source_lines: List[str]) -> List[Dict[str, Any]]:
+def detect_insecure_functions(
+    tree: ast.AST, source_lines: List[str]
+) -> List[Dict[str, Any]]:
     """Detect calls to insecure functions like eval, exec, pickle.load"""
     issues: List[Dict[str, Any]] = []
 
@@ -65,13 +69,19 @@ def detect_insecure_functions(tree: ast.AST, source_lines: List[str]) -> List[Di
             func = node.func
             if isinstance(func, ast.Name) and func.id in insecure_names:
                 lineno = getattr(node, "lineno", None)
-                snippet = source_lines[lineno - 1].strip() if lineno else ast.get_source_segment("", node)
-                issues.append({
-                    "type": "Insecure Function Usage",
-                    "line": lineno,
-                    "snippet": snippet,
-                    "message": f"Use of {func.id}() can lead to code injection or unexpected behavior. Avoid using it with untrusted input.",
-                })
+                snippet = (
+                    source_lines[lineno - 1].strip()
+                    if lineno
+                    else ast.get_source_segment("", node)
+                )
+                issues.append(
+                    {
+                        "type": "Insecure Function Usage",
+                        "line": lineno,
+                        "snippet": snippet,
+                        "message": f"Use of {func.id}() can lead to code injection or unexpected behavior. Avoid using it with untrusted input.",
+                    }
+                )
 
             # attribute access like pickle.load(...)
             if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
@@ -80,32 +90,43 @@ def detect_insecure_functions(tree: ast.AST, source_lines: List[str]) -> List[Di
                 if (name, attr) in insecure_attrs:
                     lineno = getattr(node, "lineno", None)
                     snippet = source_lines[lineno - 1].strip() if lineno else ""
-                    issues.append({
-                        "type": "Insecure Function Usage",
-                        "line": lineno,
-                        "snippet": snippet,
-                        "message": "Unpickling data from untrusted sources can lead to remote code execution.",
-                    })
+                    issues.append(
+                        {
+                            "type": "Insecure Function Usage",
+                            "line": lineno,
+                            "snippet": snippet,
+                            "message": "Unpickling data from untrusted sources can lead to remote code execution.",
+                        }
+                    )
 
             # detect subprocess calls like subprocess.run / Popen etc
             if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
-                if func.value.id == "subprocess" and func.attr in {"Popen", "call", "run", "check_output"}:
+                if func.value.id == "subprocess" and func.attr in {
+                    "Popen",
+                    "call",
+                    "run",
+                    "check_output",
+                }:
                     lineno = getattr(node, "lineno", None)
                     snippet = source_lines[lineno - 1].strip() if lineno else ""
                     # check for shell=True keyword
                     shell_true = any(
-                        isinstance(k.arg, str) and k.arg == "shell" and getattr(k.value, "value", False) is True
+                        isinstance(k.arg, str)
+                        and k.arg == "shell"
+                        and getattr(k.value, "value", False) is True
                         for k in getattr(node, "keywords", [])
                     )
                     msg = "Use of subprocess APIs can run external commands; ensure inputs are sanitized."
                     if shell_true:
                         msg += " Detected shell=True which increases risk of injection."
-                    issues.append({
-                        "type": "Suspicious Subprocess Call",
-                        "line": lineno,
-                        "snippet": snippet,
-                        "message": msg,
-                    })
+                    issues.append(
+                        {
+                            "type": "Suspicious Subprocess Call",
+                            "line": lineno,
+                            "snippet": snippet,
+                            "message": msg,
+                        }
+                    )
 
             # continue walking
             self.generic_visit(node)
@@ -114,11 +135,16 @@ def detect_insecure_functions(tree: ast.AST, source_lines: List[str]) -> List[Di
     return issues
 
 
-def detect_dangerous_imports(tree: ast.AST, source_lines: List[str]) -> List[Dict[str, Any]]:
+def detect_dangerous_imports(
+    tree: ast.AST, source_lines: List[str]
+) -> List[Dict[str, Any]]:
     """Detect dangerous imports or uses like os.system, subprocess.*"""
     issues: List[Dict[str, Any]] = []
 
-    dangerous_modules = {"os": ["system", "popen"], "subprocess": ["Popen", "call", "run"]}
+    dangerous_modules = {
+        "os": ["system", "popen"],
+        "subprocess": ["Popen", "call", "run"],
+    }
 
     class ImportVisitor(ast.NodeVisitor):
         def visit_Import(self, node: ast.Import):
@@ -126,12 +152,14 @@ def detect_dangerous_imports(tree: ast.AST, source_lines: List[str]) -> List[Dic
                 if alias.name in dangerous_modules:
                     lineno = getattr(node, "lineno", None)
                     snippet = source_lines[lineno - 1].strip() if lineno else ""
-                    issues.append({
-                        "type": "Dangerous Import",
-                        "line": lineno,
-                        "snippet": snippet,
-                        "message": f"Importing {alias.name} can enable executing shell commands; review usage.",
-                    })
+                    issues.append(
+                        {
+                            "type": "Dangerous Import",
+                            "line": lineno,
+                            "snippet": snippet,
+                            "message": f"Importing {alias.name} can enable executing shell commands; review usage.",
+                        }
+                    )
 
         def visit_ImportFrom(self, node: ast.ImportFrom):
             module = node.module
@@ -140,12 +168,14 @@ def detect_dangerous_imports(tree: ast.AST, source_lines: List[str]) -> List[Dic
             if module in dangerous_modules:
                 lineno = getattr(node, "lineno", None)
                 snippet = source_lines[lineno - 1].strip() if lineno else ""
-                issues.append({
-                    "type": "Dangerous Import",
-                    "line": lineno,
-                    "snippet": snippet,
-                    "message": f"Import from {module} can enable executing shell commands; review usage.",
-                })
+                issues.append(
+                    {
+                        "type": "Dangerous Import",
+                        "line": lineno,
+                        "snippet": snippet,
+                        "message": f"Import from {module} can enable executing shell commands; review usage.",
+                    }
+                )
 
     ImportVisitor().visit(tree)
     return issues
@@ -157,10 +187,22 @@ def detect_hardcoded_secrets(source: str) -> List[Dict[str, Any]]:
 
     # naive patterns for assignments like password = '...' or API_KEY="..."
     patterns = [
-        (r"(?i)\b(password|passwd|pwd)\s*=\s*(['\"][^'\"]{4,}['\"])", "Hardcoded Secret", "Avoid hardcoding passwords in source code; use environment variables or secret stores."),
-        (r"(?i)\b(api_key|apikey|aws_access_key_id|aws_secret_access_key)\s*=\s*(['\"][^'\"]{4,}['\"])", "Hardcoded Secret", "Avoid hardcoding API keys or credentials in source code; use environment variables or secret managers."),
+        (
+            r"(?i)\b(password|passwd|pwd)\s*=\s*(['\"][^'\"]{4,}['\"])",
+            "Hardcoded Secret",
+            "Avoid hardcoding passwords in source code; use environment variables or secret stores.",
+        ),
+        (
+            r"(?i)\b(api_key|apikey|aws_access_key_id|aws_secret_access_key)\s*=\s*(['\"][^'\"]{4,}['\"])",
+            "Hardcoded Secret",
+            "Avoid hardcoding API keys or credentials in source code; use environment variables or secret managers.",
+        ),
         # JWT-ish tokens, long hex strings
-        (r"['\"][A-Za-z0-9_\-]{20,}['\"]", "Possible Hardcoded Token", "Found a long string constant which might be a token or secret; verify and remove from code if sensitive."),
+        (
+            r"['\"][A-Za-z0-9_\-]{20,}['\"]",
+            "Possible Hardcoded Token",
+            "Found a long string constant which might be a token or secret; verify and remove from code if sensitive.",
+        ),
     ]
 
     for pattern, issue_type, message in patterns:
@@ -169,17 +211,21 @@ def detect_hardcoded_secrets(source: str) -> List[Dict[str, Any]]:
             # compute line number
             line = source.count("\n", 0, start) + 1
             snippet = m.group(0)
-            issues.append({
-                "type": issue_type,
-                "line": line,
-                "snippet": snippet,
-                "message": message,
-            })
+            issues.append(
+                {
+                    "type": issue_type,
+                    "line": line,
+                    "snippet": snippet,
+                    "message": message,
+                }
+            )
 
     return issues
 
 
-def detect_deprecated_hashes(tree: ast.AST, source_lines: List[str]) -> List[Dict[str, Any]]:
+def detect_deprecated_hashes(
+    tree: ast.AST, source_lines: List[str]
+) -> List[Dict[str, Any]]:
     """Detect use of deprecated/insecure hash functions like md5 and sha1"""
     issues: List[Dict[str, Any]] = []
 
@@ -189,19 +235,23 @@ def detect_deprecated_hashes(tree: ast.AST, source_lines: List[str]) -> List[Dic
             if isinstance(node.value, ast.Name) and node.attr in {"md5", "sha1"}:
                 lineno = getattr(node, "lineno", None)
                 snippet = source_lines[lineno - 1].strip() if lineno else ""
-                issues.append({
-                    "type": "Deprecated Hash",
-                    "line": lineno,
-                    "snippet": snippet,
-                    "message": f"Use of {node.attr} is deprecated for security-sensitive hashing. Use sha256 or stronger algorithms.",
-                })
+                issues.append(
+                    {
+                        "type": "Deprecated Hash",
+                        "line": lineno,
+                        "snippet": snippet,
+                        "message": f"Use of {node.attr} is deprecated for security-sensitive hashing. Use sha256 or stronger algorithms.",
+                    }
+                )
             self.generic_visit(node)
 
     HashVisitor().visit(tree)
     return issues
 
 
-def detect_sql_injection_python(tree: ast.AST, source_lines: List[str]) -> List[Dict[str, Any]]:
+def detect_sql_injection_python(
+    tree: ast.AST, source_lines: List[str]
+) -> List[Dict[str, Any]]:
     """Heuristic detection of SQL-like string concatenation that may lead to SQL injection."""
     issues: List[Dict[str, Any]] = []
     sql_keywords = {"select", "insert", "update", "delete", "where", "from"}
@@ -221,7 +271,11 @@ def detect_sql_injection_python(tree: ast.AST, source_lines: List[str]) -> List[
                         return n.value
                     if isinstance(n, ast.JoinedStr):
                         # f-string -> attempt to grab static portions
-                        parts = [getattr(v, 's', '') for v in getattr(n, 'values', []) if hasattr(v, 's')]
+                        parts = [
+                            getattr(v, "s", "")
+                            for v in getattr(n, "values", [])
+                            if hasattr(v, "s")
+                        ]
                         return "".join(parts)
                     return ""
 
@@ -233,25 +287,37 @@ def detect_sql_injection_python(tree: ast.AST, source_lines: List[str]) -> List[
                 # - presence of SQL keywords in static strings combined with formatting or concatenation
                 # - use of % formatting, .format(), or f-strings with variables
                 uses_formatting = any(
-                    isinstance(x, ast.BinOp) and isinstance(x.op, ast.Mod) for x in ast.walk(node)
+                    isinstance(x, ast.BinOp) and isinstance(x.op, ast.Mod)
+                    for x in ast.walk(node)
                 ) or any("format(" in s for s in combined.splitlines())
 
-                if any(k in combined for k in sql_keywords) and (uses_formatting or "%" in combined or "{" in combined or "f'" in combined):
+                if any(k in combined for k in sql_keywords) and (
+                    uses_formatting
+                    or "%" in combined
+                    or "{" in combined
+                    or "f'" in combined
+                ):
                     lineno = getattr(node, "lineno", None)
                     snippet = source_lines[lineno - 1].strip() if lineno else ""
-                    issues.append({
-                        "type": "Possible SQL Injection",
-                        "line": lineno,
-                        "snippet": snippet,
-                        "message": "Detected SQL keywords in string operations combined with formatting/concatenation. Use parameterized queries (e.g., cursor.execute(sql, params)).",
-                    })
+                    issues.append(
+                        {
+                            "type": "Possible SQL Injection",
+                            "line": lineno,
+                            "snippet": snippet,
+                            "message": "Detected SQL keywords in string operations combined with formatting/concatenation. Use parameterized queries (e.g., cursor.execute(sql, params)).",
+                        }
+                    )
 
             self.generic_visit(node)
 
         def visit_Call(self, node: ast.Call):
             # detect patterns like cursor.execute("..." % var) or cursor.execute(query.format(var))
             func = node.func
-            if isinstance(func, ast.Attribute) and func.attr in {"execute", "executemany"} and node.args:
+            if (
+                isinstance(func, ast.Attribute)
+                and func.attr in {"execute", "executemany"}
+                and node.args
+            ):
                 first = node.args[0]
                 sql_text = ""
                 if isinstance(first, ast.Constant) and isinstance(first.value, str):
@@ -259,62 +325,93 @@ def detect_sql_injection_python(tree: ast.AST, source_lines: List[str]) -> List[
                 elif isinstance(first, ast.BinOp):
                     # concatenated SQL
                     try:
-                        sql_text = ast.get_source_segment("\n".join(source_lines), first) or ""
+                        sql_text = (
+                            ast.get_source_segment("\n".join(source_lines), first) or ""
+                        )
                     except Exception:
                         sql_text = ""
 
                 if any(k in sql_text for k in sql_keywords):
                     # check if parameters were provided
-                    has_params = len(node.args) > 1 or any(k.arg == 'params' for k in getattr(node, 'keywords', []))
+                    has_params = len(node.args) > 1 or any(
+                        k.arg == "params" for k in getattr(node, "keywords", [])
+                    )
                     if not has_params:
                         lineno = getattr(node, "lineno", None)
                         snippet = source_lines[lineno - 1].strip() if lineno else ""
-                        issues.append({
-                            "type": "Possible SQL Injection",
-                            "line": lineno,
-                            "snippet": snippet,
-                            "message": "Detected SQL execution without parameterization. Use parameterized queries instead of string-building.",
-                        })
+                        issues.append(
+                            {
+                                "type": "Possible SQL Injection",
+                                "line": lineno,
+                                "snippet": snippet,
+                                "message": "Detected SQL execution without parameterization. Use parameterized queries instead of string-building.",
+                            }
+                        )
 
             # handle cases like cursor.execute(query) where query is a variable assigned elsewhere
-            if isinstance(node.func, ast.Attribute) and node.func.attr in {"execute", "executemany"} and node.args:
+            if (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr in {"execute", "executemany"}
+                and node.args
+            ):
                 first = node.args[0]
                 if isinstance(first, ast.Name):
                     varname = first.id
                     assigned = self.assigns.get(varname)
                     sql_text = ""
                     if assigned is not None:
-                        if isinstance(assigned, ast.Constant) and isinstance(assigned.value, str):
+                        if isinstance(assigned, ast.Constant) and isinstance(
+                            assigned.value, str
+                        ):
                             sql_text = assigned.value.lower()
                         elif isinstance(assigned, ast.BinOp):
                             try:
-                                sql_text = ast.get_source_segment("\n".join(source_lines), assigned) or ""
+                                sql_text = (
+                                    ast.get_source_segment(
+                                        "\n".join(source_lines), assigned
+                                    )
+                                    or ""
+                                )
                             except Exception:
                                 sql_text = ""
                         elif isinstance(assigned, ast.JoinedStr):
                             # f-string
                             try:
-                                sql_text = ast.get_source_segment("\n".join(source_lines), assigned) or ""
+                                sql_text = (
+                                    ast.get_source_segment(
+                                        "\n".join(source_lines), assigned
+                                    )
+                                    or ""
+                                )
                             except Exception:
                                 sql_text = ""
                         elif isinstance(assigned, ast.Call):
                             # .format() call
                             try:
-                                sql_text = ast.get_source_segment("\n".join(source_lines), assigned) or ""
+                                sql_text = (
+                                    ast.get_source_segment(
+                                        "\n".join(source_lines), assigned
+                                    )
+                                    or ""
+                                )
                             except Exception:
                                 sql_text = ""
 
                     if sql_text and any(k in sql_text.lower() for k in sql_keywords):
-                        has_params = len(node.args) > 1 or any(k.arg == 'params' for k in getattr(node, 'keywords', []))
+                        has_params = len(node.args) > 1 or any(
+                            k.arg == "params" for k in getattr(node, "keywords", [])
+                        )
                         if not has_params:
                             lineno = getattr(node, "lineno", None)
                             snippet = source_lines[lineno - 1].strip() if lineno else ""
-                            issues.append({
-                                "type": "Possible SQL Injection",
-                                "line": lineno,
-                                "snippet": snippet,
-                                "message": "Detected SQL execution using a variable that appears to be built via string formatting/concatenation. Use parameterized queries.",
-                            })
+                            issues.append(
+                                {
+                                    "type": "Possible SQL Injection",
+                                    "line": lineno,
+                                    "snippet": snippet,
+                                    "message": "Detected SQL execution using a variable that appears to be built via string formatting/concatenation. Use parameterized queries.",
+                                }
+                            )
 
         def visit_Assign(self, node: ast.Assign):
             # record simple assignments of the form name = <expr>
@@ -327,27 +424,39 @@ def detect_sql_injection_python(tree: ast.AST, source_lines: List[str]) -> List[
     return issues
 
 
-def detect_insecure_regex_python(tree: ast.AST, source_lines: List[str]) -> List[Dict[str, Any]]:
+def detect_insecure_regex_python(
+    tree: ast.AST, source_lines: List[str]
+) -> List[Dict[str, Any]]:
     """Detect overly-broad regex patterns like '.*' used in re.compile or re.search"""
     issues: List[Dict[str, Any]] = []
 
     class RegexVisitor(ast.NodeVisitor):
         def visit_Call(self, node: ast.Call):
             func = node.func
-            if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name) and func.value.id == "re":
+            if (
+                isinstance(func, ast.Attribute)
+                and isinstance(func.value, ast.Name)
+                and func.value.id == "re"
+            ):
                 if func.attr in {"compile", "search", "match"} and node.args:
                     first = node.args[0]
                     if isinstance(first, ast.Constant) and isinstance(first.value, str):
                         pattern = first.value
-                        if pattern.strip() in {".*", ".*?", "^.*$"} or ".*" in pattern and len(pattern.strip()) < 10:
+                        if (
+                            pattern.strip() in {".*", ".*?", "^.*$"}
+                            or ".*" in pattern
+                            and len(pattern.strip()) < 10
+                        ):
                             lineno = getattr(node, "lineno", None)
                             snippet = source_lines[lineno - 1].strip() if lineno else ""
-                            issues.append({
-                                "type": "Insecure Regex",
-                                "line": lineno,
-                                "snippet": snippet,
-                                "message": "Found an overly-broad regex pattern which may lead to excessive backtracking or unintended matches.",
-                            })
+                            issues.append(
+                                {
+                                    "type": "Insecure Regex",
+                                    "line": lineno,
+                                    "snippet": snippet,
+                                    "message": "Found an overly-broad regex pattern which may lead to excessive backtracking or unintended matches.",
+                                }
+                            )
 
             self.generic_visit(node)
 
@@ -363,47 +472,59 @@ def analyze_text_for_js(source: str) -> List[Dict[str, Any]]:
     # eval / Function constructor
     for i, line in enumerate(lines, start=1):
         if re.search(r"\beval\s*\(", line):
-            issues.append({
-                "type": "Insecure Function Usage",
-                "line": i,
-                "snippet": line.strip(),
-                "message": "Use of eval() in JS can lead to code injection. Avoid using it with untrusted input.",
-            })
+            issues.append(
+                {
+                    "type": "Insecure Function Usage",
+                    "line": i,
+                    "snippet": line.strip(),
+                    "message": "Use of eval() in JS can lead to code injection. Avoid using it with untrusted input.",
+                }
+            )
 
         if re.search(r"\b(new\s+RegExp|RegExp)\b", line) and re.search(r"\.\*", line):
-            issues.append({
-                "type": "Insecure Regex",
-                "line": i,
-                "snippet": line.strip(),
-                "message": "Found a RegExp pattern that includes '.*' which may be overly broad.",
-            })
+            issues.append(
+                {
+                    "type": "Insecure Regex",
+                    "line": i,
+                    "snippet": line.strip(),
+                    "message": "Found a RegExp pattern that includes '.*' which may be overly broad.",
+                }
+            )
 
         # child_process.exec / spawn
         if re.search(r"\b(child_process\.|\bexec\s*\(|\.exec\()", line):
-            issues.append({
-                "type": "Suspicious Subprocess Call",
-                "line": i,
-                "snippet": line.strip(),
-                "message": "Use of child_process APIs can execute shell commands; ensure inputs are sanitized.",
-            })
+            issues.append(
+                {
+                    "type": "Suspicious Subprocess Call",
+                    "line": i,
+                    "snippet": line.strip(),
+                    "message": "Use of child_process APIs can execute shell commands; ensure inputs are sanitized.",
+                }
+            )
 
         # SQL concatenation heuristics
-        if re.search(r"(?i)\b(select|insert|update|delete)\b", line) and ("+" in line or "${" in line):
-            issues.append({
-                "type": "Possible SQL Injection",
-                "line": i,
-                "snippet": line.strip(),
-                "message": "SQL keyword found in a line with string concatenation/template insertion — use parameterized queries.",
-            })
+        if re.search(r"(?i)\b(select|insert|update|delete)\b", line) and (
+            "+" in line or "${" in line
+        ):
+            issues.append(
+                {
+                    "type": "Possible SQL Injection",
+                    "line": i,
+                    "snippet": line.strip(),
+                    "message": "SQL keyword found in a line with string concatenation/template insertion — use parameterized queries.",
+                }
+            )
 
         # hardcoded secrets
         if re.search(r"(?i)\b(password|api_key|secret)\b\s*[:=]\s*['\"]", line):
-            issues.append({
-                "type": "Hardcoded Secret",
-                "line": i,
-                "snippet": line.strip(),
-                "message": "Avoid hardcoding secrets in source code; use environment variables or secret stores.",
-            })
+            issues.append(
+                {
+                    "type": "Hardcoded Secret",
+                    "line": i,
+                    "snippet": line.strip(),
+                    "message": "Avoid hardcoding secrets in source code; use environment variables or secret stores.",
+                }
+            )
 
     return issues
 
@@ -419,22 +540,26 @@ def analyze_text_for_cpp(source: str) -> List[Dict[str, Any]]:
             # detect direct calls like system(...)
             direct_match = re.search(rf"\b{fn}\s*\(", line)
             # also catch macro-wrapped calls like CALL(system)("...") where 'system' may be followed by ')('
-            macro_like = (fn in line and '(' in line and line.find(fn) < line.rfind('('))
+            macro_like = fn in line and "(" in line and line.find(fn) < line.rfind("(")
             if direct_match or macro_like:
-                issues.append({
-                    "type": "Dangerous Function",
-                    "line": i,
-                    "snippet": line.strip(),
-                    "message": f"Use of {fn} can be unsafe; prefer safer alternatives and bounds-checked APIs.",
-                })
+                issues.append(
+                    {
+                        "type": "Dangerous Function",
+                        "line": i,
+                        "snippet": line.strip(),
+                        "message": f"Use of {fn} can be unsafe; prefer safer alternatives and bounds-checked APIs.",
+                    }
+                )
 
         if re.search(r"(?i)\b(password|api_key|secret)\b.*=[^\n]*['\"]", line):
-            issues.append({
-                "type": "Hardcoded Secret",
-                "line": i,
-                "snippet": line.strip(),
-                "message": "Avoid hardcoding secrets in source code; use environment variables or secret stores.",
-            })
+            issues.append(
+                {
+                    "type": "Hardcoded Secret",
+                    "line": i,
+                    "snippet": line.strip(),
+                    "message": "Avoid hardcoding secrets in source code; use environment variables or secret stores.",
+                }
+            )
 
     return issues
 
@@ -450,7 +575,7 @@ try:
             index = cindex.Index.create()
             tu = None
             # try parsing with a couple of common args to help libclang find std includes
-            parse_attempts = [[], ['-std=c11'], ['-std=c11', f"-I{Path(path).parent}"]]
+            parse_attempts = [[], ["-std=c11"], ["-std=c11", f"-I{Path(path).parent}"]]
             for args in parse_attempts:
                 try:
                     logger.debug("Trying to parse %s with args=%s", path, args)
@@ -459,21 +584,34 @@ try:
                         logger.debug("Parsed TU successfully with args=%s", args)
                         break
                 except Exception:
-                    logger.debug("Parse attempt failed for args=%s", args, exc_info=True)
+                    logger.debug(
+                        "Parse attempt failed for args=%s", args, exc_info=True
+                    )
                     tu = None
             # try parsing with unsaved_files (sometimes helps when includes are missing)
             if tu is None:
                 try:
-                    src = Path(path).read_text(encoding='utf-8')
+                    src = Path(path).read_text(encoding="utf-8")
                     for args in parse_attempts:
                         try:
-                            logger.debug("Trying parse with unsaved_files and args=%s", args)
-                            tu = index.parse(path, args=args, unsaved_files=[(path, src)])
+                            logger.debug(
+                                "Trying parse with unsaved_files and args=%s", args
+                            )
+                            tu = index.parse(
+                                path, args=args, unsaved_files=[(path, src)]
+                            )
                             if tu is not None:
-                                logger.debug("Parsed TU successfully with unsaved_files and args=%s", args)
+                                logger.debug(
+                                    "Parsed TU successfully with unsaved_files and args=%s",
+                                    args,
+                                )
                                 break
                         except Exception:
-                            logger.debug("Unsaved_files parse attempt failed for args=%s", args, exc_info=True)
+                            logger.debug(
+                                "Unsaved_files parse attempt failed for args=%s",
+                                args,
+                                exc_info=True,
+                            )
                             tu = None
                 except Exception:
                     tu = None
@@ -481,10 +619,12 @@ try:
             if tu is None:
                 try:
                     opts = 0
-                    if hasattr(cindex, 'TranslationUnit') and hasattr(cindex.TranslationUnit, 'PARSE_DETAILED_PROCESSING_RECORD'):
+                    if hasattr(cindex, "TranslationUnit") and hasattr(
+                        cindex.TranslationUnit, "PARSE_DETAILED_PROCESSING_RECORD"
+                    ):
                         opts = cindex.TranslationUnit.PARSE_DETAILED_PROCESSING_RECORD
                     logger.debug("Trying parse with options=%s", opts)
-                    tu = index.parse(path, args=['-std=c11'], options=opts)
+                    tu = index.parse(path, args=["-std=c11"], options=opts)
                     logger.debug("Parse with options result: %s", bool(tu))
                 except Exception:
                     tu = None
@@ -492,70 +632,82 @@ try:
                 # libclang failed to produce a TU but clang bindings exist. Use heuristic fallback
                 # but enrich the results with startLine/endLine and snippet so tests that expect
                 # libclang-style fields still receive them.
-                fb_issues = analyze_text_for_cpp(Path(path).read_text(encoding='utf-8'))
+                fb_issues = analyze_text_for_cpp(Path(path).read_text(encoding="utf-8"))
                 enriched: List[Dict[str, Any]] = []
-                src_lines_fb = Path(path).read_text(encoding='utf-8').splitlines()
+                src_lines_fb = Path(path).read_text(encoding="utf-8").splitlines()
                 try:
-                    ctx = int(os.environ.get('CODEGUARDIAN_SNIPPET_CONTEXT', str(SNIPPET_CONTEXT)))
+                    ctx = int(
+                        os.environ.get(
+                            "CODEGUARDIAN_SNIPPET_CONTEXT", str(SNIPPET_CONTEXT)
+                        )
+                    )
                 except Exception:
                     ctx = SNIPPET_CONTEXT
                 for it in fb_issues:
-                    line_no = it.get('line') or 0
+                    line_no = it.get("line") or 0
                     sline = max(1, int(line_no)) if line_no else None
                     if sline:
                         # convert to 0-based
                         idx = max(0, sline - 1)
                         start_idx = max(0, idx - ctx)
                         end_idx = min(len(src_lines_fb) - 1, idx + ctx)
-                        snippet_lines = src_lines_fb[start_idx:end_idx + 1]
+                        snippet_lines = src_lines_fb[start_idx : end_idx + 1]
                         snippet = "\n".join(l.rstrip() for l in snippet_lines).strip()
                     else:
-                        snippet = it.get('snippet', '')
-                    enriched.append({
-                        **it,
-                        "startLine": sline,
-                        "startColumn": None,
-                        "endLine": sline,
-                        "endColumn": None,
-                        "snippet": snippet,
-                    })
+                        snippet = it.get("snippet", "")
+                    enriched.append(
+                        {
+                            **it,
+                            "startLine": sline,
+                            "startColumn": None,
+                            "endLine": sline,
+                            "endColumn": None,
+                            "snippet": snippet,
+                        }
+                    )
                 return enriched
         except Exception:
             # If any unexpected exception happens during libclang parsing, fall back to
             # the heuristic analyzer but enrich results with startLine/endLine and
             # snippet context so tests expecting libclang-style fields receive them.
             try:
-                fb_issues = analyze_text_for_cpp(Path(path).read_text(encoding='utf-8'))
+                fb_issues = analyze_text_for_cpp(Path(path).read_text(encoding="utf-8"))
                 enriched: List[Dict[str, Any]] = []
-                src_lines_fb = Path(path).read_text(encoding='utf-8').splitlines()
+                src_lines_fb = Path(path).read_text(encoding="utf-8").splitlines()
                 try:
-                    ctx = int(os.environ.get('CODEGUARDIAN_SNIPPET_CONTEXT', str(SNIPPET_CONTEXT)))
+                    ctx = int(
+                        os.environ.get(
+                            "CODEGUARDIAN_SNIPPET_CONTEXT", str(SNIPPET_CONTEXT)
+                        )
+                    )
                 except Exception:
                     ctx = SNIPPET_CONTEXT
                 for it in fb_issues:
-                    line_no = it.get('line') or 0
+                    line_no = it.get("line") or 0
                     sline = max(1, int(line_no)) if line_no else None
                     if sline:
                         idx = max(0, sline - 1)
                         start_idx = max(0, idx - ctx)
                         end_idx = min(len(src_lines_fb) - 1, idx + ctx)
-                        snippet_lines = src_lines_fb[start_idx:end_idx + 1]
+                        snippet_lines = src_lines_fb[start_idx : end_idx + 1]
                         snippet = "\n".join(l.rstrip() for l in snippet_lines).strip()
                     else:
-                        snippet = it.get('snippet', '')
-                    enriched.append({
-                        **it,
-                        "startLine": sline,
-                        "startColumn": None,
-                        "endLine": sline,
-                        "endColumn": None,
-                        "snippet": snippet,
-                    })
+                        snippet = it.get("snippet", "")
+                    enriched.append(
+                        {
+                            **it,
+                            "startLine": sline,
+                            "startColumn": None,
+                            "endLine": sline,
+                            "endColumn": None,
+                            "snippet": snippet,
+                        }
+                    )
                 return enriched
             except Exception:
-                return analyze_text_for_cpp(Path(path).read_text(encoding='utf-8'))
+                return analyze_text_for_cpp(Path(path).read_text(encoding="utf-8"))
         # helper to get source snippet from extent
-        src_lines = Path(path).read_text(encoding='utf-8').splitlines()
+        src_lines = Path(path).read_text(encoding="utf-8").splitlines()
 
         def snippet_from_extent(extent) -> str:
             try:
@@ -567,30 +719,38 @@ try:
                     if sline < 0:
                         sline = 0
                     if eline >= len(src_lines):
-                        eline = len(src_lines)-1
+                        eline = len(src_lines) - 1
                     # include context lines based on CODEGUARDIAN_SNIPPET_CONTEXT (read at call time)
                     try:
-                        ctx = int(os.environ.get('CODEGUARDIAN_SNIPPET_CONTEXT', str(SNIPPET_CONTEXT)))
+                        ctx = int(
+                            os.environ.get(
+                                "CODEGUARDIAN_SNIPPET_CONTEXT", str(SNIPPET_CONTEXT)
+                            )
+                        )
                     except Exception:
                         ctx = SNIPPET_CONTEXT
                     ctx_start = max(0, sline - ctx)
                     ctx_end = min(len(src_lines) - 1, eline + ctx)
-                    lines = src_lines[ctx_start:ctx_end+1]
+                    lines = src_lines[ctx_start : ctx_end + 1]
                     # trim first/last lines to the exact extent
                     if sline == eline:
                         try:
-                            selected = src_lines[sline][start.column-1:end.column-1]
+                            selected = src_lines[sline][
+                                start.column - 1 : end.column - 1
+                            ]
                         except Exception:
                             selected = src_lines[sline]
                         mid_idx = sline - ctx_start
                         lines[mid_idx] = selected
                     else:
                         try:
-                            lines[0] = lines[0][start.column-1:]
+                            lines[0] = lines[0][start.column - 1 :]
                         except Exception:
                             pass
                         try:
-                            lines[eline - ctx_start] = lines[eline - ctx_start][:end.column-1]
+                            lines[eline - ctx_start] = lines[eline - ctx_start][
+                                : end.column - 1
+                            ]
                         except Exception:
                             pass
                     return "\n".join(l.rstrip() for l in lines).strip()
@@ -601,13 +761,22 @@ try:
         def visit(node):
             try:
                 # debug log for node visit
-                logger.debug("Visiting node: kind=%s spelling=%s display=%s", getattr(node, 'kind', None), getattr(node, 'spelling', ''), getattr(node, 'displayname', ''))
+                logger.debug(
+                    "Visiting node: kind=%s spelling=%s display=%s",
+                    getattr(node, "kind", None),
+                    getattr(node, "spelling", ""),
+                    getattr(node, "displayname", ""),
+                )
                 # detect function calls named system/popen/exec/gets/strcpy/sprintf
                 if node.kind == cindex.CursorKind.CALL_EXPR:
                     # attempt to find callee spelling
                     callee_name = None
                     for ch in node.get_children():
-                        if ch.kind in (cindex.CursorKind.DECL_REF_EXPR, cindex.CursorKind.UNEXPOSED_EXPR, cindex.CursorKind.MEMBER_REF_EXPR):
+                        if ch.kind in (
+                            cindex.CursorKind.DECL_REF_EXPR,
+                            cindex.CursorKind.UNEXPOSED_EXPR,
+                            cindex.CursorKind.MEMBER_REF_EXPR,
+                        ):
                             callee_name = ch.spelling or ch.displayname or None
                             break
 
@@ -615,8 +784,20 @@ try:
                         # try recursively searching children for a known callee spelling
                         def find_name(n):
                             try:
-                                s = getattr(n, 'spelling', None) or getattr(n, 'displayname', None)
-                                if s and any(fn == s for fn in ("system", "popen", "exec", "gets", "strcpy", "sprintf")):
+                                s = getattr(n, "spelling", None) or getattr(
+                                    n, "displayname", None
+                                )
+                                if s and any(
+                                    fn == s
+                                    for fn in (
+                                        "system",
+                                        "popen",
+                                        "exec",
+                                        "gets",
+                                        "strcpy",
+                                        "sprintf",
+                                    )
+                                ):
                                     return s
                             except Exception:
                                 pass
@@ -628,10 +809,20 @@ try:
 
                         callee_name = find_name(node) or node.displayname
 
-                    if callee_name and any(fn == callee_name for fn in ("system", "popen", "exec", "gets", "strcpy", "sprintf")):
+                    if callee_name and any(
+                        fn == callee_name
+                        for fn in (
+                            "system",
+                            "popen",
+                            "exec",
+                            "gets",
+                            "strcpy",
+                            "sprintf",
+                        )
+                    ):
                         loc = node.location
-                        extent = getattr(node, 'extent', None)
-                        snip = ''
+                        extent = getattr(node, "extent", None)
+                        snip = ""
                         # prefer extent-based snippet when available
                         if extent is not None:
                             snip = snippet_from_extent(extent)
@@ -639,28 +830,41 @@ try:
                             # fallback to using location line + context
                             try:
                                 src = "\n".join(src_lines)
-                                if loc and getattr(loc, 'line', None):
+                                if loc and getattr(loc, "line", None):
                                     try:
-                                        ctx = int(os.environ.get('CODEGUARDIAN_SNIPPET_CONTEXT', str(SNIPPET_CONTEXT)))
+                                        ctx = int(
+                                            os.environ.get(
+                                                "CODEGUARDIAN_SNIPPET_CONTEXT",
+                                                str(SNIPPET_CONTEXT),
+                                            )
+                                        )
                                     except Exception:
                                         ctx = SNIPPET_CONTEXT
                                     sidx = max(0, loc.line - 1 - ctx)
                                     eidx = min(len(src_lines) - 1, loc.line - 1 + ctx)
-                                    snip = "\n".join(l.rstrip() for l in src_lines[sidx:eidx+1]).strip()
+                                    snip = "\n".join(
+                                        l.rstrip() for l in src_lines[sidx : eidx + 1]
+                                    ).strip()
                             except Exception:
-                                snip = ''
-                        logger.debug("Found callee %s at loc=%s extent=%s snippet_len=%d", callee_name, loc, bool(extent), len(snip))
+                                snip = ""
+                        logger.debug(
+                            "Found callee %s at loc=%s extent=%s snippet_len=%d",
+                            callee_name,
+                            loc,
+                            bool(extent),
+                            len(snip),
+                        )
                         # fallback for extents
                         if extent is not None:
                             sline = extent.start.line
                             scol = extent.start.column
                             eline = extent.end.line
                             ecol = extent.end.column
-                        elif loc is not None and getattr(loc, 'line', None):
+                        elif loc is not None and getattr(loc, "line", None):
                             sline = loc.line
-                            scol = getattr(loc, 'column', None)
+                            scol = getattr(loc, "column", None)
                             eline = loc.line
-                            ecol = getattr(loc, 'column', None)
+                            ecol = getattr(loc, "column", None)
                         else:
                             # best effort: unknown location
                             sline = scol = eline = ecol = None
@@ -668,25 +872,27 @@ try:
                         if sline is None:
                             try:
                                 for ch2 in node.get_children():
-                                    cloc = getattr(ch2, 'location', None)
-                                    if cloc and getattr(cloc, 'line', None):
+                                    cloc = getattr(ch2, "location", None)
+                                    if cloc and getattr(cloc, "line", None):
                                         sline = cloc.line
-                                        scol = getattr(cloc, 'column', None)
+                                        scol = getattr(cloc, "column", None)
                                         eline = cloc.line
-                                        ecol = getattr(cloc, 'column', None)
+                                        ecol = getattr(cloc, "column", None)
                                         break
                             except Exception:
                                 pass
-                        issues.append({
-                            "type": "Dangerous Function",
-                            "line": loc.line if loc else None,
-                            "startLine": sline,
-                            "startColumn": scol,
-                            "endLine": eline,
-                            "endColumn": ecol,
-                            "snippet": snip,
-                            "message": f"Use of {callee_name} can be unsafe; prefer safer alternatives.",
-                        })
+                        issues.append(
+                            {
+                                "type": "Dangerous Function",
+                                "line": loc.line if loc else None,
+                                "startLine": sline,
+                                "startColumn": scol,
+                                "endLine": eline,
+                                "endColumn": ecol,
+                                "snippet": snip,
+                                "message": f"Use of {callee_name} can be unsafe; prefer safer alternatives.",
+                            }
+                        )
 
                 # detect string literal assignments that look like hardcoded secrets
                 if node.kind == cindex.CursorKind.VAR_DECL:
@@ -696,8 +902,12 @@ try:
                             val = ch.spelling
                             if val and len(val) > 8:
                                 loc = ch.location
-                                extent = getattr(ch, 'extent', None)
-                                snip = snippet_from_extent(extent) if extent is not None else ''
+                                extent = getattr(ch, "extent", None)
+                                snip = (
+                                    snippet_from_extent(extent)
+                                    if extent is not None
+                                    else ""
+                                )
                                 if extent is not None:
                                     sline = extent.start.line
                                     scol = extent.start.column
@@ -705,33 +915,35 @@ try:
                                     ecol = extent.end.column
                                 elif loc is not None:
                                     sline = loc.line
-                                    scol = getattr(loc, 'column', None)
+                                    scol = getattr(loc, "column", None)
                                     eline = loc.line
-                                    ecol = getattr(loc, 'column', None)
+                                    ecol = getattr(loc, "column", None)
                                 else:
                                     sline = scol = eline = ecol = None
                                     if sline is None:
                                         try:
                                             for ch2 in node.get_children():
-                                                cloc = getattr(ch2, 'location', None)
-                                                if cloc and getattr(cloc, 'line', None):
+                                                cloc = getattr(ch2, "location", None)
+                                                if cloc and getattr(cloc, "line", None):
                                                     sline = cloc.line
-                                                    scol = getattr(cloc, 'column', None)
+                                                    scol = getattr(cloc, "column", None)
                                                     eline = cloc.line
-                                                    ecol = getattr(cloc, 'column', None)
+                                                    ecol = getattr(cloc, "column", None)
                                                     break
                                         except Exception:
                                             pass
-                                issues.append({
-                                    "type": "Hardcoded Secret",
-                                    "line": loc.line if loc else None,
-                                    "startLine": sline,
-                                    "startColumn": scol,
-                                    "endLine": eline,
-                                    "endColumn": ecol,
-                                    "snippet": snip,
-                                    "message": "Possible hardcoded secret in C/C++ source.",
-                                })
+                                issues.append(
+                                    {
+                                        "type": "Hardcoded Secret",
+                                        "line": loc.line if loc else None,
+                                        "startLine": sline,
+                                        "startColumn": scol,
+                                        "endLine": eline,
+                                        "endColumn": ecol,
+                                        "snippet": snip,
+                                        "message": "Possible hardcoded secret in C/C++ source.",
+                                    }
+                                )
             except Exception:
                 logger.exception("Exception while visiting node")
 
@@ -740,11 +952,13 @@ try:
 
         visit(tu.cursor)
         return issues
+
 except Exception:
     cindex = None
+
     def analyze_cpp_with_clang(path: str) -> List[Dict[str, Any]]:
         # fallback
-        return analyze_text_for_cpp(Path(path).read_text(encoding='utf-8'))
+        return analyze_text_for_cpp(Path(path).read_text(encoding="utf-8"))
 
 
 def analyze_path(path: str, recursive: bool = True) -> Dict[str, List[Dict[str, Any]]]:
@@ -768,7 +982,12 @@ def analyze_path(path: str, recursive: bool = True) -> Dict[str, List[Dict[str, 
                 if f.suffix.lower() in {".py", ".js", ".cpp"}:
                     files.append(f)
         else:
-            files = [f for f in p.iterdir() if f.suffix.lower() in {".py", ".js", ".cpp"} and f.name not in vendor_dirs]
+            files = [
+                f
+                for f in p.iterdir()
+                if f.suffix.lower() in {".py", ".js", ".cpp"}
+                and f.name not in vendor_dirs
+            ]
 
     for f in files:
         try:
@@ -782,7 +1001,12 @@ def analyze_path(path: str, recursive: bool = True) -> Dict[str, List[Dict[str, 
             node_script = Path(__file__).parent / "js_parser.js"
             if node_script.exists():
                 try:
-                    proc = subprocess.run(["node", str(node_script), str(f)], capture_output=True, text=True, timeout=5)
+                    proc = subprocess.run(
+                        ["node", str(node_script), str(f)],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                    )
                     if proc.returncode == 0 and proc.stdout:
                         try:
                             js_issues = json.loads(proc.stdout)
@@ -840,12 +1064,14 @@ def analyze_code(file_path: str) -> List[Dict[str, Any]]:
             line_num = int(line_val) if line_val is not None else None
         except Exception:
             line_num = None
-        normalized.append({
-            "type": it.get("type", "Unknown"),
-            "line": line_num,
-            "snippet": (it.get("snippet", "") or "").strip(),
-            "message": it.get("message", ""),
-        })
+        normalized.append(
+            {
+                "type": it.get("type", "Unknown"),
+                "line": line_num,
+                "snippet": (it.get("snippet", "") or "").strip(),
+                "message": it.get("message", ""),
+            }
+        )
 
     return normalized
 
@@ -893,7 +1119,7 @@ def extract_structure(file_path: str) -> Dict[str, Any]:
                     elif isinstance(n.func, ast.Name):
                         fname = n.func.id
                     else:
-                        fname = ast.unparse(n.func) if hasattr(ast, 'unparse') else ''
+                        fname = ast.unparse(n.func) if hasattr(ast, "unparse") else ""
                     calls.append(fname)
                     # record argument reprs
                     args = []
@@ -902,17 +1128,26 @@ def extract_structure(file_path: str) -> Dict[str, Any]:
                             args.append(ast.unparse(a))
                         except Exception:
                             args.append(type(a).__name__)
-                    function_calls.append({"function": fname, "args": args, "location": {"line": getattr(n,'lineno',None)}})
+                    function_calls.append(
+                        {
+                            "function": fname,
+                            "args": args,
+                            "location": {"line": getattr(n, "lineno", None)},
+                        }
+                    )
 
             doc = ast.get_docstring(node)
-            functions.append({
-                "name": node.name,
-                "args": [arg.arg for arg in node.args.args],
-                "calls": calls,
-                "docstring": doc,
-                "location": {"line": getattr(node, 'lineno', None)},
-            })
+            functions.append(
+                {
+                    "name": node.name,
+                    "args": [arg.arg for arg in node.args.args],
+                    "calls": calls,
+                    "docstring": doc,
+                    "location": {"line": getattr(node, "lineno", None)},
+                }
+            )
             self.generic_visit(node)
+
         def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
             # treat async functions similarly to regular functions
             calls = []
@@ -923,7 +1158,7 @@ def extract_structure(file_path: str) -> Dict[str, Any]:
                     elif isinstance(n.func, ast.Name):
                         fname = n.func.id
                     else:
-                        fname = ast.unparse(n.func) if hasattr(ast, 'unparse') else ''
+                        fname = ast.unparse(n.func) if hasattr(ast, "unparse") else ""
                     calls.append(fname)
                     # record argument reprs
                     args = []
@@ -932,16 +1167,24 @@ def extract_structure(file_path: str) -> Dict[str, Any]:
                             args.append(ast.unparse(a))
                         except Exception:
                             args.append(type(a).__name__)
-                    function_calls.append({"function": fname, "args": args, "location": {"line": getattr(n,'lineno',None)}})
+                    function_calls.append(
+                        {
+                            "function": fname,
+                            "args": args,
+                            "location": {"line": getattr(n, "lineno", None)},
+                        }
+                    )
 
             doc = ast.get_docstring(node)
-            functions.append({
-                "name": node.name,
-                "args": [arg.arg for arg in node.args.args],
-                "calls": calls,
-                "docstring": doc,
-                "location": {"line": getattr(node, 'lineno', None)},
-            })
+            functions.append(
+                {
+                    "name": node.name,
+                    "args": [arg.arg for arg in node.args.args],
+                    "calls": calls,
+                    "docstring": doc,
+                    "location": {"line": getattr(node, "lineno", None)},
+                }
+            )
             self.generic_visit(node)
 
     # classes
@@ -951,19 +1194,25 @@ def extract_structure(file_path: str) -> Dict[str, Any]:
         def visit_ClassDef(self, node: ast.ClassDef):
             methods = []
             for n in node.body:
-                if isinstance(n, ast.FunctionDef) or isinstance(n, ast.AsyncFunctionDef):
-                    methods.append({
-                        "name": n.name,
-                        "args": [arg.arg for arg in n.args.args],
-                        "docstring": ast.get_docstring(n),
-                        "location": {"line": getattr(n, 'lineno', None)},
-                    })
-            classes.append({
-                "name": node.name,
-                "methods": methods,
-                "docstring": ast.get_docstring(node),
-                "location": {"line": getattr(node, 'lineno', None)},
-            })
+                if isinstance(n, ast.FunctionDef) or isinstance(
+                    n, ast.AsyncFunctionDef
+                ):
+                    methods.append(
+                        {
+                            "name": n.name,
+                            "args": [arg.arg for arg in n.args.args],
+                            "docstring": ast.get_docstring(n),
+                            "location": {"line": getattr(n, "lineno", None)},
+                        }
+                    )
+            classes.append(
+                {
+                    "name": node.name,
+                    "methods": methods,
+                    "docstring": ast.get_docstring(node),
+                    "location": {"line": getattr(node, "lineno", None)},
+                }
+            )
             self.generic_visit(node)
 
     FunctionVisitor().visit(tree)
@@ -976,23 +1225,39 @@ def extract_structure(file_path: str) -> Dict[str, Any]:
             for t in node.targets:
                 if isinstance(t, ast.Name):
                     try:
-                        value = ast.unparse(node.value) if hasattr(ast, 'unparse') else ''
+                        value = (
+                            ast.unparse(node.value) if hasattr(ast, "unparse") else ""
+                        )
                     except Exception:
                         value = type(node.value).__name__
-                    assignments.append({"variable": t.id, "value": value, "location": {"line": getattr(node, 'lineno', None)}})
+                    assignments.append(
+                        {
+                            "variable": t.id,
+                            "value": value,
+                            "location": {"line": getattr(node, "lineno", None)},
+                        }
+                    )
 
     # string literals
     string_literals = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
-            string_literals.append({"value": node.value, "location": {"line": getattr(node, 'lineno', None)}})
+            string_literals.append(
+                {
+                    "value": node.value,
+                    "location": {"line": getattr(node, "lineno", None)},
+                }
+            )
 
     # comments — use tokenize
     comments = []
     try:
         import tokenize
         from io import BytesIO
-        for toktype, tok, start, end, line in tokenize.tokenize(BytesIO(source.encode('utf-8')).readline):
+
+        for toktype, tok, start, end, line in tokenize.tokenize(
+            BytesIO(source.encode("utf-8")).readline
+        ):
             if toktype == tokenize.COMMENT:
                 comments.append({"text": tok, "location": {"line": start[0]}})
     except Exception:
@@ -1003,30 +1268,53 @@ def extract_structure(file_path: str) -> Dict[str, Any]:
     for node in ast.walk(tree):
         if isinstance(node, ast.If):
             try:
-                cond = ast.unparse(node.test) if hasattr(ast, 'unparse') else ''
+                cond = ast.unparse(node.test) if hasattr(ast, "unparse") else ""
             except Exception:
-                cond = ''
-            control_flow.append({"type": "if", "condition": cond, "location": {"line": getattr(node, 'lineno', None)}})
+                cond = ""
+            control_flow.append(
+                {
+                    "type": "if",
+                    "condition": cond,
+                    "location": {"line": getattr(node, "lineno", None)},
+                }
+            )
         if isinstance(node, ast.For):
             try:
-                target = ast.unparse(node.target) if hasattr(ast, 'unparse') else ''
+                target = ast.unparse(node.target) if hasattr(ast, "unparse") else ""
             except Exception:
-                target = ''
-            control_flow.append({"type": "for", "target": target, "location": {"line": getattr(node, 'lineno', None)}})
+                target = ""
+            control_flow.append(
+                {
+                    "type": "for",
+                    "target": target,
+                    "location": {"line": getattr(node, "lineno", None)},
+                }
+            )
         if isinstance(node, ast.While):
             try:
-                cond = ast.unparse(node.test) if hasattr(ast, 'unparse') else ''
+                cond = ast.unparse(node.test) if hasattr(ast, "unparse") else ""
             except Exception:
-                cond = ''
-            control_flow.append({"type": "while", "condition": cond, "location": {"line": getattr(node, 'lineno', None)}})
+                cond = ""
+            control_flow.append(
+                {
+                    "type": "while",
+                    "condition": cond,
+                    "location": {"line": getattr(node, "lineno", None)},
+                }
+            )
         if isinstance(node, ast.Try):
-            control_flow.append({"type": "try", "location": {"line": getattr(node, 'lineno', None)}})
+            control_flow.append(
+                {"type": "try", "location": {"line": getattr(node, "lineno", None)}}
+            )
 
     # naive external calls: look for requests., socket., urllib
     external_calls = []
     for fc in function_calls:
-        func = fc.get('function', '')
-        if any(func.startswith(prefix) for prefix in ("requests.", "socket.", "urllib.", "http.", "ftplib.")):
+        func = fc.get("function", "")
+        if any(
+            func.startswith(prefix)
+            for prefix in ("requests.", "socket.", "urllib.", "http.", "ftplib.")
+        ):
             external_calls.append(fc)
 
     result = {
@@ -1045,15 +1333,40 @@ def extract_structure(file_path: str) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="CodeGuardian static scanner (Stage 2)")
+    parser = argparse.ArgumentParser(
+        description="CodeGuardian static scanner (Stage 2)"
+    )
     parser.add_argument("path", help="File or directory to scan")
-    parser.add_argument("-r", "--recursive", action="store_true", help="Recursively scan directories")
+    parser.add_argument(
+        "-r", "--recursive", action="store_true", help="Recursively scan directories"
+    )
     parser.add_argument("-o", "--output", help="Output JSON file (defaults to stdout)")
-    parser.add_argument("-f", "--flatten", action="store_true", help="Output flattened JSON list of issues with file paths")
-    parser.add_argument("--ignore-vendor", action="store_true", help="Ignore common vendor directories like node_modules when scanning")
-    parser.add_argument("--exclude", action="append", help="Additional glob patterns or directory names to exclude (can be passed multiple times)")
-    parser.add_argument("--sarif", action="store_true", help="Write SARIF output alongside JSON (simple mapping)")
-    parser.add_argument("--stream", action="store_true", help="Stream results one file at a time to stdout as JSON lines")
+    parser.add_argument(
+        "-f",
+        "--flatten",
+        action="store_true",
+        help="Output flattened JSON list of issues with file paths",
+    )
+    parser.add_argument(
+        "--ignore-vendor",
+        action="store_true",
+        help="Ignore common vendor directories like node_modules when scanning",
+    )
+    parser.add_argument(
+        "--exclude",
+        action="append",
+        help="Additional glob patterns or directory names to exclude (can be passed multiple times)",
+    )
+    parser.add_argument(
+        "--sarif",
+        action="store_true",
+        help="Write SARIF output alongside JSON (simple mapping)",
+    )
+    parser.add_argument(
+        "--stream",
+        action="store_true",
+        help="Stream results one file at a time to stdout as JSON lines",
+    )
     args = parser.parse_args()
 
     target = args.path
@@ -1064,7 +1377,10 @@ if __name__ == "__main__":
     excludes = set(args.exclude or [])
 
     def should_ignore_vendor(path_parts):
-        if args.ignore_vendor and any(part in {"node_modules", "venv", ".venv", "build", "dist"} for part in path_parts):
+        if args.ignore_vendor and any(
+            part in {"node_modules", "venv", ".venv", "build", "dist"}
+            for part in path_parts
+        ):
             return True
         # check custom excludes
         for pattern in excludes:
@@ -1105,7 +1421,12 @@ if __name__ == "__main__":
                 node_script = Path(__file__).parent / "js_parser.js"
                 if node_script.exists():
                     try:
-                        proc = subprocess.run(["node", str(node_script), str(f)], capture_output=True, text=True, timeout=5)
+                        proc = subprocess.run(
+                            ["node", str(node_script), str(f)],
+                            capture_output=True,
+                            text=True,
+                            timeout=5,
+                        )
                         if proc.returncode == 0 and proc.stdout:
                             try:
                                 file_issues = json.loads(proc.stdout)
@@ -1162,30 +1483,73 @@ if __name__ == "__main__":
         try:
             # rule metadata mapping (id -> metadata)
             rule_metadata = {
-                "Insecure Function Usage": {"id": "CG1001", "shortDescription": "Insecure function usage", "help": "Avoid using insecure functions like eval/exec.", "level": "warning"},
-                "Hardcoded Secret": {"id": "CG1002", "shortDescription": "Hardcoded secret", "help": "Avoid hardcoding secrets in source code.", "level": "error"},
-                "Possible SQL Injection": {"id": "CG1003", "shortDescription": "Possible SQL injection", "help": "Use parameterized queries instead of string building.", "level": "error"},
-                "Suspicious Subprocess Call": {"id": "CG1004", "shortDescription": "Suspicious subprocess call", "help": "Ensure subprocess inputs are sanitized and avoid shell=True.", "level": "warning"},
-                "Dangerous Function": {"id": "CG1005", "shortDescription": "Dangerous function in C/C++", "help": "Avoid unsafe C functions like system/gets/strcpy.", "level": "error"},
-                "Insecure Regex": {"id": "CG1006", "shortDescription": "Insecure regex pattern", "help": "Avoid overly-broad regexes that may backtrack.", "level": "note"},
-                "Deprecated Hash": {"id": "CG1007", "shortDescription": "Deprecated hash function", "help": "Use a stronger hash like sha256.", "level": "warning"},
+                "Insecure Function Usage": {
+                    "id": "CG1001",
+                    "shortDescription": "Insecure function usage",
+                    "help": "Avoid using insecure functions like eval/exec.",
+                    "level": "warning",
+                },
+                "Hardcoded Secret": {
+                    "id": "CG1002",
+                    "shortDescription": "Hardcoded secret",
+                    "help": "Avoid hardcoding secrets in source code.",
+                    "level": "error",
+                },
+                "Possible SQL Injection": {
+                    "id": "CG1003",
+                    "shortDescription": "Possible SQL injection",
+                    "help": "Use parameterized queries instead of string building.",
+                    "level": "error",
+                },
+                "Suspicious Subprocess Call": {
+                    "id": "CG1004",
+                    "shortDescription": "Suspicious subprocess call",
+                    "help": "Ensure subprocess inputs are sanitized and avoid shell=True.",
+                    "level": "warning",
+                },
+                "Dangerous Function": {
+                    "id": "CG1005",
+                    "shortDescription": "Dangerous function in C/C++",
+                    "help": "Avoid unsafe C functions like system/gets/strcpy.",
+                    "level": "error",
+                },
+                "Insecure Regex": {
+                    "id": "CG1006",
+                    "shortDescription": "Insecure regex pattern",
+                    "help": "Avoid overly-broad regexes that may backtrack.",
+                    "level": "note",
+                },
+                "Deprecated Hash": {
+                    "id": "CG1007",
+                    "shortDescription": "Deprecated hash function",
+                    "help": "Use a stronger hash like sha256.",
+                    "level": "warning",
+                },
             }
 
             rules = []
             for name, meta in rule_metadata.items():
-                rules.append({
-                    "id": meta["id"],
-                    "shortDescription": {"text": meta["shortDescription"]},
-                    "fullDescription": {"text": meta["help"]},
-                    "properties": {"severity": meta["level"]},
-                })
+                rules.append(
+                    {
+                        "id": meta["id"],
+                        "shortDescription": {"text": meta["shortDescription"]},
+                        "fullDescription": {"text": meta["help"]},
+                        "properties": {"severity": meta["level"]},
+                    }
+                )
 
             sarif = {
                 "version": "2.1.0",
                 "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0.json",
                 "runs": [
                     {
-                        "tool": {"driver": {"name": "CodeGuardian", "informationUri": "https://example.com", "rules": rules}},
+                        "tool": {
+                            "driver": {
+                                "name": "CodeGuardian",
+                                "informationUri": "https://example.com",
+                                "rules": rules,
+                            }
+                        },
                         "results": [],
                     }
                 ],
@@ -1194,26 +1558,40 @@ if __name__ == "__main__":
             for fp, issues in results.items():
                 for it in issues:
                     t = it.get("type")
-                    meta = rule_metadata.get(t, {"id": "CG9999", "shortDescription": t, "level": "warning"})
+                    meta = rule_metadata.get(
+                        t, {"id": "CG9999", "shortDescription": t, "level": "warning"}
+                    )
                     result_entry = {
                         "ruleId": meta["id"],
                         "level": meta.get("level", "warning"),
                         "message": {"text": it.get("message") or t},
-                        "locations": [{
-                            "physicalLocation": {
-                                "artifactLocation": {"uri": fp},
-                                "region": {
-                                    "startLine": it.get("startLine") or it.get("line") or 0,
-                                    "startColumn": it.get("startColumn") or it.get("startColumn") or None,
-                                    "endLine": it.get("endLine") or it.get("line") or 0,
-                                    "endColumn": it.get("endColumn") or it.get("endColumn") or None,
+                        "locations": [
+                            {
+                                "physicalLocation": {
+                                    "artifactLocation": {"uri": fp},
+                                    "region": {
+                                        "startLine": it.get("startLine")
+                                        or it.get("line")
+                                        or 0,
+                                        "startColumn": it.get("startColumn")
+                                        or it.get("startColumn")
+                                        or None,
+                                        "endLine": it.get("endLine")
+                                        or it.get("line")
+                                        or 0,
+                                        "endColumn": it.get("endColumn")
+                                        or it.get("endColumn")
+                                        or None,
+                                    },
                                 }
                             }
-                        }]
+                        ],
                     }
                     sarif["runs"][0]["results"].append(result_entry)
 
-            Path('results.sarif').write_text(json.dumps(sarif, indent=2), encoding='utf-8')
+            Path("results.sarif").write_text(
+                json.dumps(sarif, indent=2), encoding="utf-8"
+            )
         except Exception:
             pass
 

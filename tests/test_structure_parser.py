@@ -24,33 +24,32 @@ password = "not_a_secret"
 # a comment here
 
 '''
-    p = tmp_path / 'sample.py'
-    p.write_text(code, encoding='utf-8')
+    p = tmp_path / "sample.py"
+    p.write_text(code, encoding="utf-8")
 
     res = parser.extract_structure(str(p))
     # Basic shape checks
     assert isinstance(res, dict)
-    assert 'imports' in res and 'functions' in res and 'classes' in res
+    assert "imports" in res and "functions" in res and "classes" in res
     # imports
-    assert 'os' in res['imports']
-    assert (
-        any('math.sqrt' in im or im == 'math.sqrt' for im in res['imports'])
-        or any('math.sqrt' in i for i in res['imports'])
+    assert "os" in res["imports"]
+    assert any("math.sqrt" in im or im == "math.sqrt" for im in res["imports"]) or any(
+        "math.sqrt" in i for i in res["imports"]
     )
     # functions and methods
-    fnames = [f['name'] for f in res['functions']]
-    assert 'func' in fnames
+    fnames = [f["name"] for f in res["functions"]]
+    assert "func" in fnames
     # classes
-    cnames = [c['name'] for c in res['classes']]
-    assert 'MyClass' in cnames
+    cnames = [c["name"] for c in res["classes"]]
+    assert "MyClass" in cnames
     # assignments
-    assert any(a['variable'] == 'password' for a in res['assignments'])
+    assert any(a["variable"] == "password" for a in res["assignments"])
     # string literals
-    assert any('not_a_secret' in s['value'] for s in res['string_literals'])
+    assert any("not_a_secret" in s["value"] for s in res["string_literals"])
     # comments
-    assert any('comment here' in c['text'] for c in res['comments'])
+    assert any("comment here" in c["text"] for c in res["comments"])
     # control flow (function exists)
-    assert any(fc.get('function') == 'print' for fc in res['function_calls'])
+    assert any(fc.get("function") == "print" for fc in res["function_calls"])
 
 
 def test_extract_structure_simple(tmp_path: Path):
@@ -80,24 +79,23 @@ def load_data(file_path):
 
 password = 'admin123'
 '''
-    p = tmp_path / 'sample.py'
-    p.write_text(code, encoding='utf-8')
+    p = tmp_path / "sample.py"
+    p.write_text(code, encoding="utf-8")
 
     out = extract_structure(str(p))
-    assert 'imports' in out and 'os' in out['imports']
-    assert any(f['name'] == 'load_data' for f in out['functions'])
-    assert any(c['name'] == 'UserManager' for c in out['classes'])
-    assert any(a['variable'] == 'password' for a in out['assignments'])
-    assert any('admin123' in s['value'] for s in out['string_literals'])
+    assert "imports" in out and "os" in out["imports"]
+    assert any(f["name"] == "load_data" for f in out["functions"])
+    assert any(c["name"] == "UserManager" for c in out["classes"])
+    assert any(a["variable"] == "password" for a in out["assignments"])
+    assert any("admin123" in s["value"] for s in out["string_literals"])
     assert any(
-        'module comment' in c['text']
-        or 'This is a module comment' in c.get('text', '')
-        for c in out['comments']
+        "module comment" in c["text"] or "This is a module comment" in c.get("text", "")
+        for c in out["comments"]
     )
 
 
 def test_extract_structure_edge_cases(tmp_path: Path):
-    code = '''
+    code = """
 def decorator(fn):
     def wrapper(*a, **k):
         return fn(*a, **k)
@@ -120,43 +118,36 @@ def caller():
     decorated(2, y=3)
     return async_fun(5)
 
-'''
-    p = tmp_path / 'edge.py'
-    p.write_text(code, encoding='utf-8')
+"""
+    p = tmp_path / "edge.py"
+    p.write_text(code, encoding="utf-8")
 
     out = extract_structure(str(p))
     # nested class
-    assert any(c['name'] == 'Outer' for c in out['classes'])
+    assert any(c["name"] == "Outer" for c in out["classes"])
 
     # inner method should be discoverable within class methods list
-    outer = next(c for c in out['classes'] if c['name'] == 'Outer')
-    assert any(
-        m['name'] == 'inner_method'
-        or any(
-            'inner_method' in meth.get('name', '')
-            for meth in outer.get('methods', [])
+    outer = next(c for c in out["classes"] if c["name"] == "Outer")
+    assert (
+        any(
+            m["name"] == "inner_method"
+            or any(
+                "inner_method" in meth.get("name", "")
+                for meth in outer.get("methods", [])
+            )
+            for m in outer.get("methods", [])
         )
-        for m in outer.get('methods', [])
-    ) or True
+        or True
+    )
 
     # decorator and decorated function present
-    assert any(f['name'] == 'decorated' for f in out['functions'])
+    assert any(f["name"] == "decorated" for f in out["functions"])
 
     # async function present
-    assert any(f['name'] == 'async_fun' for f in out['functions'])
+    assert any(f["name"] == "async_fun" for f in out["functions"])
 
     # stricter call checks:
     # ensure calls to decorated include both 1-arg and 2-arg cases recorded
-    calls = [
-        fc
-        for fc in out['function_calls']
-        if fc.get('function') == 'decorated'
-    ]
-    assert any(
-        len(c.get('args', [])) == 1
-        for c in calls
-    )
-    assert any(
-        len(c.get('args', [])) >= 1
-        for c in calls
-    )
+    calls = [fc for fc in out["function_calls"] if fc.get("function") == "decorated"]
+    assert any(len(c.get("args", [])) == 1 for c in calls)
+    assert any(len(c.get("args", [])) >= 1 for c in calls)

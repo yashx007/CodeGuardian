@@ -1,4 +1,3 @@
-
 from typing import List, Optional
 import io
 import zipfile
@@ -116,6 +115,7 @@ async def _fetch_url_content(url: str) -> Optional[bytes]:
     # Try to fetch using httpx if available; otherwise use urllib in a thread
     try:
         import httpx
+
         async with httpx.AsyncClient(timeout=10.0) as c:
             r = await c.get(url)
             r.raise_for_status()
@@ -135,8 +135,8 @@ def _scan_and_pack(filename: str, content: str):
         res = engine.scan_code(filename, content)
         return {
             "filename": filename,
-            "issue": res.get('issue'),
-            "suggestion": res.get('suggestion'),
+            "issue": res.get("issue"),
+            "suggestion": res.get("suggestion"),
         }
     except Exception as e:
         return {"filename": filename, "error": str(e)}
@@ -157,25 +157,29 @@ async def upload(
     # Process uploaded files if any
     if files:
         for f in files:
-            name = f.filename or 'uploaded'
+            name = f.filename or "uploaded"
             data = await f.read()
             # handle archives
             lower = name.lower()
             try:
-                if lower.endswith('.zip'):
+                if lower.endswith(".zip"):
                     with zipfile.ZipFile(io.BytesIO(data)) as z:
                         for nm in z.namelist():
                             try:
                                 b = z.read(nm)
                                 try:
-                                    text = b.decode('utf-8', errors='ignore')
+                                    text = b.decode("utf-8", errors="ignore")
                                 except Exception:
                                     continue
                                 results.append(_scan_and_pack(nm, text))
                             except Exception:
                                 continue
                     continue
-                if lower.endswith('.tar') or lower.endswith('.tgz') or lower.endswith('.tar.gz'):
+                if (
+                    lower.endswith(".tar")
+                    or lower.endswith(".tgz")
+                    or lower.endswith(".tar.gz")
+                ):
                     try:
                         with tarfile.open(fileobj=io.BytesIO(data)) as t:
                             for member in t.getmembers():
@@ -185,7 +189,7 @@ async def upload(
                                         continue
                                     b = fh.read()
                                     try:
-                                        text = b.decode('utf-8', errors='ignore')
+                                        text = b.decode("utf-8", errors="ignore")
                                     except Exception:
                                         continue
                                     results.append(_scan_and_pack(member.name, text))
@@ -193,7 +197,7 @@ async def upload(
                     except Exception:
                         pass
                 # otherwise treat as a regular text file
-                text = data.decode('utf-8', errors='ignore')
+                text = data.decode("utf-8", errors="ignore")
                 results.append(_scan_and_pack(name, text))
             except Exception as e:
                 results.append({"filename": name, "error": str(e)})
@@ -202,7 +206,7 @@ async def upload(
 
     # Process pasted code
     if code is not None:
-        fn = filename or 'pasted.py'
+        fn = filename or "pasted.py"
         results.append(_scan_and_pack(fn, code))
         return JSONResponse({"results": results})
 
@@ -212,9 +216,9 @@ async def upload(
         if content is None:
             return JSONResponse({"error": "Failed to fetch URL"}, status_code=400)
         try:
-            text = content.decode('utf-8', errors='ignore')
+            text = content.decode("utf-8", errors="ignore")
         except Exception:
-            text = ''
+            text = ""
         results.append(_scan_and_pack(url, text))
         return JSONResponse({"results": results})
 
