@@ -47,21 +47,7 @@ jobs:
         run: |
           . .venv/bin/activate
           if [ -f scan_results.json ]; then
-            python - <<'PY'
-import json
-r = json.load(open('scan_results.json'))
-out = {
-  'version': '2.1.0',
-  'runs': [
-    {
-      'tool': {'driver': {'name': 'CodeGuardian', 'informationUri': 'https://example.com'}},
-      'results': r
-    }
-  ]
-}
-open('results.sarif', 'w').write(json.dumps(out))
-print('SARIF generated from scan_results.json')
-PY
+            python -c "import json; r=json.load(open('scan_results.json')); out={'version':'2.1.0','runs':[{'tool':{'driver':{'name':'CodeGuardian','informationUri':'https://example.com'}},'results':r}]}; open('results.sarif','w').write(__import__('json').dumps(out)); print('SARIF generated from scan_results.json')"
           else
             echo '{"version":"2.1.0","runs":[]}' > results.sarif
             echo "No scan_results.json found; generated empty results.sarif"
