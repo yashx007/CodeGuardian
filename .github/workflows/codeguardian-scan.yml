@@ -53,7 +53,17 @@ jobs:
 
       - name: Generate PR summary markdown
         if: always()
-        run: . .venv/bin/activate; python tools/generate_pr_summary.py scan_results.json > pr_summary.md || true
+        run: |
+          . .venv/bin/activate
+          python tools/generate_pr_summary.py scan_results.json > pr_summary.md || echo 'No summary' > pr_summary.md
+
+      - name: Read PR summary into output
+        if: always()
+        id: read_summary
+        run: |
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          cat pr_summary.md || echo 'No summary'
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Post PR comment with scan summary
         if: always()
@@ -61,9 +71,4 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            CodeGuardian scan results
-            
-            <!-- summary -->
-            $(cat pr_summary.md || echo 'No summary')
-*** End Patch
+          body: ${{ steps.read_summary.outputs.body }}

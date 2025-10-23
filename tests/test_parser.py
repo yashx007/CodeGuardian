@@ -1,8 +1,4 @@
-import json
 from pathlib import Path
-
-import pytest
-
 from agent.parser import analyze_code
 
 
@@ -17,12 +13,18 @@ def test_detect_eval_and_input(tmp_path: Path):
 user = input('enter: ')
 result = eval(user)
 """
-    p = write_tmp(tmp_path, "sample_eval.py", code)
-    results = analyze_code(str(p))
-    types = [r["type"] for r in results]
-    snippets = [r["snippet"] for r in results]
-    assert any(r["type"] == "Insecure Function Usage" and "eval" in r["snippet"] for r in results)
-    assert any(r["type"] == "Insecure Function Usage" and "input" in r["snippet"] for r in results)
+    write_tmp(tmp_path, "sample_eval.py", code)
+    sample_path = tmp_path / "sample_eval.py"
+    results = analyze_code(str(sample_path))
+    # types/snippets lists are not needed; assertions inspect results directly
+    assert any(
+        r["type"] == "Insecure Function Usage" and "eval" in r["snippet"]
+        for r in results
+    )
+    assert any(
+        r["type"] == "Insecure Function Usage" and "input" in r["snippet"]
+        for r in results
+    )
 
 
 def test_detect_hardcoded_password(tmp_path: Path):
@@ -58,7 +60,7 @@ let user = 'input';
 eval(user);
 exec('ls ' + user);
 """
-    p = write_tmp(tmp_path, "sample.js", code)
+    write_tmp(tmp_path, "sample.js", code)
     # analyze_text_for_js is internal; use analyze_path to exercise full path
     from agent.parser import analyze_path
 
@@ -82,7 +84,7 @@ int main(){
   return 0;
 }
 """
-    p = write_tmp(tmp_path, "sample.cpp", code)
+    write_tmp(tmp_path, "sample.cpp", code)
     from agent.parser import analyze_path
 
     results = analyze_path(str(tmp_path), recursive=False)
