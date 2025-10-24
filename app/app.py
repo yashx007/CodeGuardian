@@ -10,6 +10,8 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
 from agent.engine import engine
+from agent import parser as stage2_parser
+from agent.reasoning import reasoner, Reasoner
 
 
 app = FastAPI(title="CodeGuardian API")
@@ -223,3 +225,64 @@ async def upload(
         return JSONResponse({"results": results})
 
     return JSONResponse({"error": "No input provided"}, status_code=400)
+
+
+@app.post("/analyze")
+async def analyze(stage2: dict = None, files: List[UploadFile] = File(None), code: str = Form(None), filename: str = Form(None)):
+    """Analyze input using Stage 2 parser and Stage 3 reasoner.
+
+    Modes:
+    - Provide `stage2` JSON (mapping file->issues) directly
+    - Upload files (same as /upload) and they will be analyzed with Stage 2
+    - Paste code via 'code' and 'filename'
+    """
+    # If user provided Stage 2 JSON directly
+    if stage2:
+        enriched = reasoner.enrich(stage2)
+        return JSONResponse(enriched)
+
+    results = []
+    # uploaded files
+    if files:
+        for f in files:
+            try:
+                text = await f.read()
+                text = text.decode("utf-8", errors="ignore")
+            except Exception:
+                continue
+            issues = stage2_parser.analyze_code("uploaded:" + (f.filename or "file"))
+            enriched = reasoner.enrich({f.filename or "uploaded": issues})
+            results.append(enriched)
+        return JSONResponse({"results": results})
+
+    # pasted code
+    if code is not None:
+        fn = filename or "pasted.py"
+        # write to temp file? stage2 parser accepts path -> use analyze_code by writing to a temporary path
+        # But parser.analyze_code accepts file path string and loads file - instead we can call parser.analyze_code by using a small helper
+        # Simpler: call stage2_parser.analyze_code by creating a temporary file on disk
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=True) as tf:
+            tf.write(code)
+            tf.flush()
+            issues = stage2_parser.analyze_code(tf.name)
+        enriched = reasoner.enrich({fn: issues})
+        return JSONResponse(enriched)
+
+    return JSONResponse({"error": "No input provided to analyze"}, status_code=400)
+
+
+@app.get("/summary")
+def summary(path: str = None):
+    """Run a scan on a path and return severity breakdown and top risky files.
+
+    If path is omitted, returns an empty summary.
+    """
+    if not path:
+        return JSONResponse({"summary": {"counts": {}, "risk": "Unknown", "total_issues": 0}})
+
+    findings = stage2_parser.analyze_path(path, recursive=True)
+    enriched = reasoner.enrich(findings)
+    # keep only summary
+    return JSONResponse({"summary": enriched.get("summary")})
