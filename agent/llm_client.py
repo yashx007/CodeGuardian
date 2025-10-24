@@ -14,6 +14,11 @@ import os
 import logging
 from typing import Dict, Any, Optional
 
+try:
+    from .nim_client import NIMClient
+except Exception:
+    NIMClient = None  # type: ignore
+
 logger = logging.getLogger("codeguardian.llm_client")
 
 
@@ -21,28 +26,25 @@ class LLMClient:
     def __init__(self, mode: Optional[str] = None):
         # mode: 'offline' or 'nim'
         self.mode = mode or os.environ.get("CODEGUARDIAN_LLM_MODE", "offline")
-        # simple flag whether online inference is available
         self.online_available = False
-        if self.mode == "nim":
-            # try to import / initialize a real NIM client; if not present, fall back
+        self.nim = None
+        if self.mode == "nim" and NIMClient is not None:
             try:
-                # Placeholder import — users can replace with real NIM SDK calls
-                import nim  # type: ignore
-
-                self.online_available = True
+                self.nim = NIMClient()
+                if getattr(self.nim, "inference_url", None) or getattr(self.nim, "embedding_url", None):
+                    self.online_available = True
             except Exception:
-                logger.warning(
-                    "NIM client requested but not available; falling back to offline mode"
-                )
+                logger.warning("Failed to initialize NIM client; falling back to offline")
                 self.mode = "offline"
 
     def explain(self, issue: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Produce an explanation/fix/references for a single issue.
 
-        issue: object from Stage 2 with keys like type, line, snippet, message
-        context: optional additional context (file, surrounding code)
+        If online mode is enabled the NIM inference endpoint will be called with a
+        prompt constructed from the issue and context. The response is parsed into
+        explanation/fix/references. On any failure the offline templates are used.
         """
-        if self.mode == "nim" and self.online_available:
+        if self.mode == "nim" and self.online_available and self.nim is not None:
             try:
                 return self._explain_online(issue, context)
             except Exception:
@@ -52,23 +54,48 @@ class LLMClient:
         return self._explain_offline(issue, context)
 
     def _explain_online(self, issue: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Call the external NIM inference endpoint. This is a placeholder; projects should
-        replace with actual SDK calls.
-        """
-        # Example stub — real implementation should build a rich prompt and parse JSON
-        # response. Here we simply forward to offline behavior for safety.
-        logger.debug("_explain_online would call NIM with issue=%s", issue.get("type"))
-        return self._explain_offline(issue, context)
+        # Build a structured prompt including KB/context if provided
+        itype = issue.get("type", "Issue")
+        snippet = issue.get("snippet", "")
+        message = issue.get("message", "")
+        ctx = "\n".join((context.get("kb", {}).get("summary", ""),)) if context else ""
+
+        prompt = (
+            f"You are a security expert. Explain the following code issue and provide a short fix and references.\n"
+            f"Issue Type: {itype}\nLine: {issue.get('line')}\nSnippet: {snippet}\nMessage: {message}\nContext: {ctx}\n\n"
+            "Provide a JSON object with keys: explanation, fix, references (list of URLs)."
+        )
+
+        out_text = self.nim.explain(prompt, max_tokens=512)
+        # Try to parse JSON from the model output
+        try:
+            import json
+
+            parsed = json.loads(out_text)
+            # ensure keys
+            return {
+                "explanation": parsed.get("explanation") or parsed.get("explain") or parsed.get("description") or str(parsed),
+                "fix": parsed.get("fix") or parsed.get("remediation") or "",
+                "references": parsed.get("references") or parsed.get("refs") or [],
+            }
+        except Exception:
+            # fallback: heuristically split the text into parts
+            lines = out_text.splitlines()
+            explanation = out_text
+            fix = ""
+            refs = []
+            # look for 'Fix:' or 'Remediation:' markers
+            for i, l in enumerate(lines):
+                if l.lower().startswith("fix:") or l.lower().startswith("remediation:"):
+                    fix = " ".join(lines[i: i + 3])
+                if l.lower().startswith("http"):
+                    refs.append(l.strip())
+            return {"explanation": explanation, "fix": fix, "references": refs}
 
     def _explain_offline(self, issue: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Deterministic templated explanations for dev/test mode.
-
-        This ensures tests can run without external models.
-        """
         itype = (issue.get("type") or "Unknown").lower()
         snippet = issue.get("snippet") or ""
 
-        # simple template mapping
         templates = {
             "hardcoded secret": {
                 "explanation": "This file contains a hardcoded secret or credential in source code which can be read by anyone with repository access.",
@@ -106,7 +133,6 @@ class LLMClient:
         if choice:
             return {"explanation": choice["explanation"], "fix": choice["fix"], "references": choice["references"]}
 
-        # default fallback
         return {
             "explanation": f"Detected issue of type '{issue.get('type')}'. {issue.get('message', '')}",
             "fix": "Investigate the finding and apply recommended best-practices (parameterization, secrets management, or safer library APIs).",

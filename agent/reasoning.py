@@ -14,6 +14,7 @@ from typing import Dict, Any, List, Union
 
 from .llm_client import LLMClient
 from .knowledge_base import KnowledgeBase
+from .knowledge_store import KnowledgeStore
 
 logger = logging.getLogger("codeguardian.reasoning")
 
@@ -36,7 +37,17 @@ def _map_severity(issue_type: str) -> str:
 class Reasoner:
     def __init__(self, llm_mode: str | None = None):
         self.llm = LLMClient(mode=llm_mode)
-        self.kb = KnowledgeBase()
+        # try to initialize a knowledge store if available
+        try:
+            # build entries from static KB for retrieval
+            static = KnowledgeBase()
+            entries = [(k, v.get("summary", "")) for k, v in static._kb.items()]
+            self.store = KnowledgeStore(entries=entries)
+            self.kb = KnowledgeBase(use_store=True, store=self.store)
+        except Exception:
+            # fallback to static KB
+            self.store = None
+            self.kb = KnowledgeBase()
 
     def enrich_issue(self, file: str, issue: Dict[str, Any]) -> Dict[str, Any]:
         # Base fields
