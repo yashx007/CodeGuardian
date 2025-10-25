@@ -3,7 +3,7 @@
 Minimal instructions to run the project locally, run CI checks, and collaborate safely.
 
 Requirements
-- Python 3.11+
+- Python 3.12.6
 
 Quick start (PowerShell)
 
