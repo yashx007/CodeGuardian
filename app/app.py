@@ -1,4 +1,8 @@
 from typing import List, Optional
+from dotenv import load_dotenv
+
+# Load local .env for development (safe: .env is gitignored)
+load_dotenv()
 import io
 import zipfile
 import tarfile
