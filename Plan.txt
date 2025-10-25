@@ -194,3 +194,8 @@ It retrieves knowledge
 It detects and fixes vulnerabilities
 
 It’s fully agentic, impactful, and visually appealing.
+
+
+https://build.nvidia.com/nvidia/llama-3_1-nemotron-nano-8b-v1/deploy
+
+https://build.nvidia.com/nvidia/nv-embedcode-7b-v1?snippet_tab=Shell

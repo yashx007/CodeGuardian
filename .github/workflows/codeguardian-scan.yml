@@ -1,0 +1,89 @@
+name: CodeGuardian Scan
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  test-and-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y clang libclang-dev npm
+
+      - name: Setup node and install esprima
+        run: |
+          npm install
+
+      - name: Create virtualenv
+        run: python -m venv .venv; . .venv/bin/activate; pip install --upgrade pip
+
+      - name: Install Python deps
+        run: . .venv/bin/activate; pip install -r requirements.txt
+
+      - name: Run tests
+        run: . .venv/bin/activate; pytest -q
+
+      - name: Run CodeGuardian scan (flattened SARIF output)
+        # allow the scanner to exit non-zero without failing the whole job so we
+        # can still generate a summary and upload artifacts
+        run: . .venv/bin/activate; python -m agent.parser . -r --ignore-vendor -f -o scan_results.json || true
+
+      - name: Generate SARIF (simple conversion)
+        if: always()
+        run: |
+          . .venv/bin/activate
+          if [ -f scan_results.json ]; then
+            python -c "import json; r=json.load(open('scan_results.json')); out={'version':'2.1.0','runs':[{'tool':{'driver':{'name':'CodeGuardian','informationUri':'https://example.com'}},'results':r}]}; open('results.sarif','w').write(__import__('json').dumps(out)); print('SARIF generated from scan_results.json')"
+          else
+            echo '{"version":"2.1.0","runs":[]}' > results.sarif
+            echo "No scan_results.json found; generated empty results.sarif"
+          fi
+
+      - name: Upload scan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeguardian-scan
+          path: |
+            scan_results.json
+            results.sarif
+
+      - name: Generate PR summary markdown
+        if: always()
+        run: |
+          . .venv/bin/activate
+          python tools/generate_pr_summary.py scan_results.json > pr_summary.md || echo 'No summary' > pr_summary.md
+
+      - name: Read PR summary into output
+        if: always()
+        id: read_summary
+        run: |
+          # must append the content between body<<EOF and EOF into $GITHUB_OUTPUT
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          if [ -f pr_summary.md ]; then
+            cat pr_summary.md >> $GITHUB_OUTPUT
+          else
+            echo 'No summary' >> $GITHUB_OUTPUT
+          fi
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post PR comment with scan summary
+        if: always()
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: ${{ steps.read_summary.outputs.body }}
