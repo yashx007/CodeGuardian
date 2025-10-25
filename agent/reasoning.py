@@ -124,15 +124,60 @@ class Reasoner:
                 sev = it.get("severity") or "Medium"
                 counts[sev] = counts.get(sev, 0) + 1
 
-        # compute overall risk heuristic
+        # compute overall risk heuristic using weighted scoring
         total = sum(counts.values())
-        risk = "Low"
-        if counts.get("High", 0) > 0 or total > 10:
-            risk = "High"
-        elif counts.get("Medium", 0) > 2:
-            risk = "Medium"
+        # weights: High=5, Medium=3, Low=1
+        weights = {"High": 5, "Medium": 3, "Low": 1}
+        weighted_sum = sum(counts.get(k, 0) * w for k, w in weights.items())
+        # normalize by max possible (if all issues were High)
+        max_possible = total * weights["High"] if total > 0 else 1
+        score = weighted_sum / max_possible if max_possible else 0.0
 
-        return {"results": enriched_results, "summary": {"counts": counts, "risk": risk, "total_issues": total}}
+        if score >= 0.7:
+            risk = "High"
+        elif score >= 0.3:
+            risk = "Medium"
+        else:
+            risk = "Low"
+
+        # build a human-readable rationale
+        rationale_parts = []
+        if counts.get("High", 0):
+            rationale_parts.append(f"{counts['High']} high-severity issue(s)")
+        if counts.get("Medium", 0):
+            rationale_parts.append(f"{counts['Medium']} medium-severity issue(s)")
+        if counts.get("Low", 0):
+            rationale_parts.append(f"{counts['Low']} low-severity issue(s)")
+        if not rationale_parts:
+            rationale = "No issues detected."
+        else:
+            rationale = ", ".join(rationale_parts) + "."
+
+        # compute top risky files by weighted file score
+        file_scores: Dict[str, int] = {}
+        for fp, issues in enriched_results.items():
+            s = 0
+            for it in issues:
+                s += weights.get(it.get("severity") or "Medium", 3)
+            file_scores[fp] = s
+
+        top_files = sorted(file_scores.items(), key=lambda x: x[1], reverse=True)[:3]
+        top_files_list = [
+            {"file": fp, "score": sc, "issues": len(enriched_results.get(fp, []))}
+            for fp, sc in top_files
+        ]
+
+        return {
+            "results": enriched_results,
+            "summary": {
+                "counts": counts,
+                "risk": risk,
+                "total_issues": total,
+                "score": round(score, 2),
+                "rationale": rationale,
+                "top_files": top_files_list,
+            },
+        }
 
 
 # convenience default reasoner
