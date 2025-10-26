@@ -232,7 +232,7 @@ async def upload(
 
 
 @app.post("/analyze")
-async def analyze(stage2: dict = None, files: List[UploadFile] = File(None), code: str = Form(None), filename: str = Form(None)):
+async def analyze(stage2: dict = None, files: List[UploadFile] = File(None), code: str = Form(None), filename: str = Form(None), backend: str = None):
     """Analyze input using Stage 2 parser and Stage 3 reasoner.
 
     Modes:
@@ -240,9 +240,18 @@ async def analyze(stage2: dict = None, files: List[UploadFile] = File(None), cod
     - Upload files (same as /upload) and they will be analyzed with Stage 2
     - Paste code via 'code' and 'filename'
     """
+    # If a backend is specified for this request, create a request-scoped Reasoner
+    req_reasoner = reasoner
+    if backend:
+        try:
+            req_reasoner = Reasoner(llm_mode=backend)
+        except Exception:
+            # fallback to global reasoner
+            req_reasoner = reasoner
+
     # If user provided Stage 2 JSON directly
     if stage2:
-        enriched = reasoner.enrich(stage2)
+        enriched = req_reasoner.enrich(stage2)
         return JSONResponse(enriched)
 
     results = []
@@ -255,7 +264,7 @@ async def analyze(stage2: dict = None, files: List[UploadFile] = File(None), cod
             except Exception:
                 continue
             issues = stage2_parser.analyze_code("uploaded:" + (f.filename or "file"))
-            enriched = reasoner.enrich({f.filename or "uploaded": issues})
+            enriched = req_reasoner.enrich({f.filename or "uploaded": issues})
             results.append(enriched)
         return JSONResponse({"results": results})
 
@@ -271,7 +280,7 @@ async def analyze(stage2: dict = None, files: List[UploadFile] = File(None), cod
             tf.write(code)
             tf.flush()
             issues = stage2_parser.analyze_code(tf.name)
-        enriched = reasoner.enrich({fn: issues})
+    enriched = req_reasoner.enrich({fn: issues})
         return JSONResponse(enriched)
 
     return JSONResponse({"error": "No input provided to analyze"}, status_code=400)
