@@ -16,9 +16,15 @@ from pydantic import BaseModel
 from agent.engine import engine
 from agent import parser as stage2_parser
 from agent.reasoning import reasoner, Reasoner
+from agent import persistence
+from fastapi import Depends
+from app.routes_chat import router as chat_router
 
 
 app = FastAPI(title="CodeGuardian API")
+
+# include chat routes
+app.include_router(chat_router)
 
 
 class ScanResult(BaseModel):
@@ -252,6 +258,11 @@ async def analyze(stage2: dict = None, files: List[UploadFile] = File(None), cod
     # If user provided Stage 2 JSON directly
     if stage2:
         enriched = req_reasoner.enrich(stage2)
+        # persist the report (best-effort)
+        try:
+            persistence.save_report("stage2_input", enriched.get("summary", {}), enriched)
+        except Exception:
+            pass
         return JSONResponse(enriched)
 
     results = []
@@ -265,6 +276,11 @@ async def analyze(stage2: dict = None, files: List[UploadFile] = File(None), cod
                 continue
             issues = stage2_parser.analyze_code("uploaded:" + (f.filename or "file"))
             enriched = req_reasoner.enrich({f.filename or "uploaded": issues})
+            # persist
+            try:
+                persistence.save_report(f.filename or "uploaded", enriched.get("summary", {}), enriched)
+            except Exception:
+                pass
             results.append(enriched)
         return JSONResponse({"results": results})
 
@@ -280,14 +296,18 @@ async def analyze(stage2: dict = None, files: List[UploadFile] = File(None), cod
             tf.write(code)
             tf.flush()
             issues = stage2_parser.analyze_code(tf.name)
-    enriched = req_reasoner.enrich({fn: issues})
+        enriched = req_reasoner.enrich({fn: issues})
+        try:
+            persistence.save_report(fn, enriched.get("summary", {}), enriched)
+        except Exception:
+            pass
         return JSONResponse(enriched)
 
     return JSONResponse({"error": "No input provided to analyze"}, status_code=400)
 
 
 @app.get("/summary")
-def summary(path: str = None):
+def summary(path: Optional[str] = None):
     """Run a scan on a path and return severity breakdown and top risky files.
 
     If path is omitted, returns an empty summary.
@@ -299,3 +319,25 @@ def summary(path: str = None):
     enriched = reasoner.enrich(findings)
     # keep only summary
     return JSONResponse({"summary": enriched.get("summary")})
+
+
+@app.get("/history")
+def history(limit: int = 50):
+    """Return recent analysis summaries (id, filename, timestamp, summary)."""
+    try:
+        reports = persistence.list_reports(limit=limit)
+        return JSONResponse({"reports": reports})
+    except Exception:
+        return JSONResponse({"error": "Failed to read history"}, status_code=500)
+
+
+@app.get("/history/{report_id}")
+def history_get(report_id: int):
+    """Return a full saved report by id."""
+    try:
+        rep = persistence.get_report(report_id)
+        if rep is None:
+            return JSONResponse({"error": "Not found"}, status_code=404)
+        return JSONResponse({"report": rep})
+    except Exception:
+        return JSONResponse({"error": "Failed to read report"}, status_code=500)
