@@ -282,14 +282,6 @@ Want to improve CodeGuardian?
 4. Submit a pull request 🚀
 
 
-## 🏆 Hackathon Submission Info
-
-* **Challenge:** *Agentic AI Unleashed: AWS & NVIDIA Hackathon*
-* **Category:** *Enterprise DevOps + Machine Learning/AI*
-* **Deadline:** November 4, 2025
-* **Team:** [@yourname] + [@teammate]
-
-
 
 ## 💡 Future Roadmap
 
