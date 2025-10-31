@@ -142,6 +142,50 @@ def chat_history(session_id: str):
     return ChatHistoryResponse(session_id=session_id, messages=session["messages"], last_active=session.get("last_active"))
 
 
+class SessionItem(BaseModel):
+    session_id: str
+    last_active: Optional[str]
+    in_memory: bool
+    message_count: int
+
+
+class SessionsResponse(BaseModel):
+    sessions: List[SessionItem]
+
+
+@router.get("/chat/sessions", response_model=SessionsResponse)
+def chat_sessions():
+    """List chat sessions (in-memory and persisted).
+
+    Returns a merged view: in-memory sessions take precedence for message counts/last_active.
+    """
+    out: Dict[str, SessionItem] = {}
+
+    # in-memory sessions
+    for sid, s in SESSIONS.items():
+        msgs = s.get("messages") or []
+        out[sid] = SessionItem(session_id=sid, last_active=s.get("last_active"), in_memory=True, message_count=len(msgs))
+
+    # persisted sessions
+    try:
+        for meta in persistence.list_sessions():
+            sid = meta.get("session_id")
+            if not sid:
+                continue
+            if sid in out:
+                # already present (in-memory), skip or update missing last_active
+                if not out[sid].last_active and meta.get("last_active"):
+                    out[sid].last_active = meta.get("last_active")
+                continue
+            last_active = meta.get("last_active")
+            out[sid] = SessionItem(session_id=sid, last_active=last_active, in_memory=False, message_count=0)
+    except Exception:
+        # best-effort; if persistence fails, return in-memory only
+        pass
+
+    return SessionsResponse(sessions=list(out.values()))
+
+
 @router.delete("/chat/{session_id}")
 def chat_delete(session_id: str):
     # remove from memory

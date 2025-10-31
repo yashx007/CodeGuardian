@@ -69,3 +69,5 @@ npm-debug.log
 
 # Misc
 *.sqlite3
+data/*.db
+data/*.sqlite3
