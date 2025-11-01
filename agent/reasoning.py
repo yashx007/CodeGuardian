@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import logging
+import re
 from typing import Dict, Any, List, Union
 
 from .llm_client import LLMClient
@@ -17,6 +18,65 @@ from .knowledge_base import KnowledgeBase
 from .knowledge_store import KnowledgeStore
 
 logger = logging.getLogger("codeguardian.reasoning")
+
+
+def _is_valid_url(u: str) -> bool:
+    if not isinstance(u, str):
+        return False
+    u = u.strip()
+    if not re.match(r'^https?://', u, re.IGNORECASE):
+        return False
+    m = re.match(r'^https?://([^/\s]+)', u)
+    return bool(m and '.' in m.group(1))
+
+
+def _sanitize_text(s: str) -> str:
+    if not isinstance(s, str):
+        return s
+    # remove non-printable characters
+    s = ''.join(ch for ch in s if ch.isprintable())
+    s = re.sub(r'[ \t]+', ' ', s)
+    return s.strip()
+
+
+def _normalize_reference(r):
+    if isinstance(r, str):
+        rs = _sanitize_text(r)
+        if _is_valid_url(rs):
+            return {"url": rs}
+        return None
+    if isinstance(r, dict):
+        url = r.get('url') or r.get('link') or r.get('href')
+        if url and _is_valid_url(url):
+            out = {"url": _sanitize_text(url)}
+            desc = r.get('description') or r.get('name')
+            if desc:
+                out['description'] = _sanitize_text(desc)
+            return out
+        return None
+    return None
+
+
+def _sanitize_results(results: Dict[str, List[Dict[str, Any]]]) -> Dict[str, int]:
+    removed = 0
+    normalized = 0
+    for fp, issues in results.items():
+        for issue in issues:
+            for key in ('explanation', 'fix', 'message', 'snippet'):
+                if key in issue:
+                    issue[key] = _sanitize_text(issue[key])
+
+            refs = issue.get('references') or []
+            new_refs = []
+            for r in refs:
+                nr = _normalize_reference(r)
+                if nr:
+                    new_refs.append(nr)
+                    normalized += 1
+                else:
+                    removed += 1
+            issue['references'] = new_refs
+    return {"removed_refs": removed, "normalized_refs": normalized}
 
 
 def _map_severity(issue_type: str) -> str:
@@ -79,6 +139,12 @@ class Reasoner:
 
         enriched["explanation"] = llm_out.get("explanation")
         enriched["fix"] = llm_out.get("fix")
+        # record whether the LLM explain call used an online provider or the offline fallback
+        try:
+            used_online = bool(getattr(self.llm, "_last_explain_used_online", False))
+        except Exception:
+            used_online = False
+        enriched["llm_used"] = "online" if used_online else "offline"
         # prefer LLN-provided references but merge KB refs
         refs = list(llm_out.get("references", []))
         if isinstance(kb_entry, dict):

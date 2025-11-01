@@ -60,17 +60,30 @@ class LLMClient:
         prompt constructed from the issue and context. The response is parsed into
         explanation/fix/references. On any failure the offline templates are used.
         """
+        # reset last-explain flag
+        try:
+            self._last_explain_used_online = False
+        except Exception:
+            pass
+
         if self.mode == "nim" and self.online_available and self.nim is not None:
             try:
-                return self._explain_online(issue, context)
+                out = self._explain_online(issue, context)
+                # mark that we successfully used online path
+                self._last_explain_used_online = True
+                return out
             except Exception:
                 logger.exception("Online LLM failed; falling back to offline templates")
+                self._last_explain_used_online = False
                 return self._explain_offline(issue, context)
         if self.mode == "sagemaker" and self.online_available and self.sagemaker is not None:
             try:
-                return self._explain_sagemaker(issue, context)
+                out = self._explain_sagemaker(issue, context)
+                self._last_explain_used_online = True
+                return out
             except Exception:
                 logger.exception("SageMaker LLM failed; falling back to offline templates")
+                self._last_explain_used_online = False
                 return self._explain_offline(issue, context)
 
         return self._explain_offline(issue, context)

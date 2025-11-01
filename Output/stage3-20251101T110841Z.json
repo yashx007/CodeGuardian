@@ -1,0 +1,169 @@
+{
+  "results": {
+    "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py": [
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Hardcoded Secret",
+        "line": 7,
+        "snippet": "password = \"hunter2\"",
+        "message": "Avoid hardcoding passwords in source code; use environment variables or secret stores.",
+        "severity": "High",
+        "explanation": "This file contains a hardcoded secret or credential in source code which can be read by anyone with repository access.",
+        "fix": "Remove the secret from source control. Use environment variables, a .env file kept out of VCS, or a secret store (HashiCorp Vault, AWS Secrets Manager). Rotate the credential immediately if it was committed.",
+        "llm_used": "offline",
+        "references": [
+          "https://owasp.org/www-project-top-ten/",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Hardcoded Secret",
+        "line": 8,
+        "snippet": "API_KEY = \"ABCD1234SECRETKEYSHOULDNOTBEHERE\"",
+        "message": "Avoid hardcoding API keys or credentials in source code; use environment variables or secret managers.",
+        "severity": "High",
+        "explanation": "This file contains a hardcoded secret or credential in source code which can be read by anyone with repository access.",
+        "fix": "Remove the secret from source control. Use environment variables, a .env file kept out of VCS, or a secret store (HashiCorp Vault, AWS Secrets Manager). Rotate the credential immediately if it was committed.",
+        "llm_used": "offline",
+        "references": [
+          "https://owasp.org/www-project-top-ten/",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Possible Hardcoded Token",
+        "line": 8,
+        "snippet": "\"ABCD1234SECRETKEYSHOULDNOTBEHERE\"",
+        "message": "Found a long string constant which might be a token or secret; verify and remove from code if sensitive.",
+        "severity": "High",
+        "explanation": "Detected issue of type 'Possible Hardcoded Token'. Found a long string constant which might be a token or secret; verify and remove from code if sensitive.",
+        "fix": "Investigate the finding and apply recommended best-practices (parameterization, secrets management, or safer library APIs).",
+        "llm_used": "offline",
+        "references": [
+          "https://owasp.org/www-project-top-ten/"
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Insecure Function Usage",
+        "line": 12,
+        "snippet": "res = eval(user_input)",
+        "message": "Use of eval() can lead to code injection or unexpected behavior. Avoid using it with untrusted input.",
+        "severity": "Medium",
+        "explanation": "Use of functions like eval() or exec() can execute arbitrary code and should be avoided, especially on user-controlled inputs.",
+        "fix": "Replace eval/exec with safer alternatives. For parsing expressions use ast.literal_eval or write a simple parser. Validate inputs strictly.",
+        "llm_used": "offline",
+        "references": [
+          "https://owasp.org/www-community/"
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Suspicious Subprocess Call",
+        "line": 15,
+        "snippet": "subprocess.run(\"ls -la\", shell=True)",
+        "message": "Use of subprocess APIs can run external commands; ensure inputs are sanitized. Detected shell=True which increases risk of injection.",
+        "severity": "Medium",
+        "explanation": "Calling subprocess APIs with unsanitized inputs or with shell=True can allow command injection or execution of unintended commands.",
+        "fix": "Avoid shell=True and pass arguments as a list. Validate and sanitize any inputs used in command construction.",
+        "llm_used": "offline",
+        "references": [
+          "https://cheatsheetseries.owasp.org/"
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Insecure Function Usage",
+        "line": 21,
+        "snippet": "obj = pickle.loads(b\"not-a-pickle\")",
+        "message": "Unpickling data from untrusted sources can lead to remote code execution.",
+        "severity": "Medium",
+        "explanation": "Use of functions like eval() or exec() can execute arbitrary code and should be avoided, especially on user-controlled inputs.",
+        "fix": "Replace eval/exec with safer alternatives. For parsing expressions use ast.literal_eval or write a simple parser. Validate inputs strictly.",
+        "llm_used": "offline",
+        "references": [
+          "https://owasp.org/www-community/"
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Dangerous Import",
+        "line": 2,
+        "snippet": "import subprocess",
+        "message": "Importing subprocess can enable executing shell commands; review usage.",
+        "severity": "Medium",
+        "explanation": "Detected issue of type 'Dangerous Import'. Importing subprocess can enable executing shell commands; review usage.",
+        "fix": "Investigate the finding and apply recommended best-practices (parameterization, secrets management, or safer library APIs).",
+        "llm_used": "offline",
+        "references": [
+          "https://owasp.org/www-project-top-ten/"
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Deprecated Hash",
+        "line": 26,
+        "snippet": "h = hashlib.md5(b\"data\").hexdigest()",
+        "message": "Use of md5 is deprecated for security-sensitive hashing. Use sha256 or stronger algorithms.",
+        "severity": "Medium",
+        "explanation": "MD5 and SHA1 are considered cryptographically broken or weak for collision resistance and should not be used for security-sensitive hashing.",
+        "fix": "Use hashlib.sha256 or a stronger function and use salt + PBKDF2 / bcrypt / scrypt / Argon2 for password hashing.",
+        "llm_used": "offline",
+        "references": [
+          "https://owasp.org/www-project-top-ten/",
+          "https://www.ipa.go.jp/security/english/",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html"
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Possible SQL Injection",
+        "line": 36,
+        "snippet": "cursor.execute(query)",
+        "message": "Detected SQL execution using a variable that appears to be built via string formatting/concatenation. Use parameterized queries.",
+        "severity": "High",
+        "explanation": "This code constructs SQL statements by concatenating strings or by formatting them directly. Attackers can inject SQL fragments through inputs, leading to data leakage or corruption.",
+        "fix": "Use parameterized queries (e.g., cursor.execute(sql, params)) or ORM query builders to avoid direct string composition of SQL. Validate and sanitize inputs.",
+        "llm_used": "offline",
+        "references": [
+          "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+          "https://owasp.org/www-community/attacks/SQL_Injection"
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Insecure Regex",
+        "line": 29,
+        "snippet": "pat = re.compile('.*')",
+        "message": "Found an overly-broad regex pattern which may lead to excessive backtracking or unintended matches.",
+        "severity": "Medium",
+        "explanation": "Overly-broad regex patterns like '.*' can match unintended input and can cause catastrophic backtracking.",
+        "fix": "Use more specific regexes and apply input length limits. Consider non-greedy qualifiers and anchors as appropriate.",
+        "llm_used": "offline",
+        "references": [
+          "https://owasp.org/www-community/"
+        ]
+      }
+    ]
+  },
+  "summary": {
+    "counts": {
+      "High": 4,
+      "Medium": 6,
+      "Low": 0
+    },
+    "risk": "High",
+    "total_issues": 10,
+    "score": 0.76,
+    "rationale": "4 high-severity issue(s), 6 medium-severity issue(s).",
+    "top_files": [
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "score": 38,
+        "issues": 10
+      }
+    ]
+  }
+}

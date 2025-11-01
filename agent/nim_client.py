@@ -38,27 +38,28 @@ class NIMClient:
         self.inference_model = os.environ.get("NIM_INFERENCE_MODEL", "llama-3.1-nemotron-nano-8b-v1")
         self.embedding_model = os.environ.get("NIM_EMBEDDING_MODEL", "nv-embedcode-7b-v1")
 
-        # If explicit embedding_url not provided but base_url+model available, construct a default path
+        # If explicit embedding_url/inference_url not provided but base_url available, construct sensible defaults
         if self.base_url:
-            # If the base looks like the NVIDIA Integrate v1 host, prefer the v1 endpoints
             base = self.base_url.rstrip('/')
-            if "integrate.api.nvidia.com" in base or base.endswith('/v1'):
-                # integrate-style base (we'll construct v1 endpoints)
-                # ensure we don't duplicate /v1
-                v1_base = base.rstrip('/')
+            # Official NVIDIA Cloud/API uses api.nvidia.com/v1
+            if "api.nvidia.com" in base:
+                # prefer OpenAI-compatible endpoints under /v1
+                v1_base = base
                 if not v1_base.endswith('/v1'):
                     v1_base = v1_base + '/v1'
-                if not self.embedding_url:
-                    # integrate v1 embeddings endpoint
-                    self.embedding_url = f"{v1_base}/embeddings"
+                # inference: prefer chat/completions (OpenAI-compatible)
                 if not self.inference_url:
-                    # integrate v1 chat/completions endpoint
                     self.inference_url = f"{v1_base}/chat/completions"
+                # embeddings: many NVIDIA LLM endpoints do not expose a /v1/embeddings path;
+                # only use explicit NIM_EMBEDDING_URL if provided by the deployment
+                if not self.embedding_url:
+                    self.embedding_url = os.environ.get('NIM_EMBEDDING_URL')
             else:
-                # default model-based patterns
+                # For self-hosted or model-specific hosts, try model-based patterns if not explicitly set
                 if not self.embedding_url and self.embedding_model:
                     self.embedding_url = f"{base}/models/{self.embedding_model}/embeddings"
                 if not self.inference_url and self.inference_model:
+                    # some deployments expose /models/<model>/infer or /infer
                     self.inference_url = f"{base}/models/{self.inference_model}/infer"
         # support per-model API keys if provided; fall back to NIM_API_KEY
         self.api_key = api_key or os.environ.get("NIM_API_KEY")
@@ -67,6 +68,8 @@ class NIMClient:
 
         if not requests:
             logger.warning("requests not installed; NIM client disabled")
+        # convenience: record whether embeddings are expected to be supported
+        self.supports_embeddings = bool(self.embedding_url)
 
     def _headers(self, api_key: Optional[str] = None):
         h = {"Content-Type": "application/json"}
@@ -128,6 +131,52 @@ class NIMClient:
         except Exception as e:
             logger.exception("NIM inference call failed: %s", e)
             raise
+
+    # convenience helpers for diagnostics
+    def check_health(self) -> Optional[dict]:
+        """Call the NIM health endpoint if available and return parsed JSON or None."""
+        if not requests or not self.base_url:
+            return None
+        try:
+            base = self.base_url.rstrip('/')
+            v1 = base
+            if not v1.endswith('/v1'):
+                v1 = v1 + '/v1'
+            url = f"{v1}/health/ready"
+            r = requests.get(url, headers=self._headers(self.api_key), timeout=5)
+            r.raise_for_status()
+            try:
+                return r.json()
+            except Exception:
+                return {"status": r.text}
+        except Exception:
+            return None
+
+    def list_models(self) -> Optional[dict]:
+        if not requests or not self.base_url:
+            return None
+        try:
+            base = self.base_url.rstrip('/')
+            v1 = base
+            if not v1.endswith('/v1'):
+                v1 = v1 + '/v1'
+            url = f"{v1}/models"
+            r = requests.get(url, headers=self._headers(self.api_key), timeout=5)
+            r.raise_for_status()
+            return r.json()
+        except Exception:
+            return None
+
+    def chat_completion(self, prompt: str, max_tokens: int = 512) -> Optional[dict]:
+        if not requests or not self.inference_url:
+            return None
+        try:
+            payload = {"model": self.inference_model, "messages": [{"role": "user", "content": prompt}], "max_tokens": max_tokens}
+            r = requests.post(self.inference_url, json=payload, headers=self._headers(self.inference_api_key), timeout=15)
+            r.raise_for_status()
+            return r.json()
+        except Exception:
+            return None
 
     def embed(self, texts: List[str]) -> List[List[float]]:
         """Call the NIM embedding endpoint to get vectors for a list of texts.
