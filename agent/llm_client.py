@@ -110,9 +110,13 @@ class LLMClient:
         ctx = "\n".join([p for p in ctx_parts if p])
 
         prompt = (
-            f"You are a senior application security engineer. Explain the following code issue in simple language, describe the impact, and provide a concise fix plus references.\n"
-            f"Issue Type: {itype}\nLine: {issue.get('line')}\nSnippet: {snippet}\nMessage: {message}\n"
-            f"Relevant Knowledge:\n{ctx}\n\n"
+            f"You are a senior application security engineer. Explain the following code issue in simple language, "
+            f"describe the impact, and provide a concise fix plus references.\n"
+            f"Issue Type: {itype}\n"
+            f"Line: {issue.get('line')}\n"
+            f"Snippet: {snippet}\n"
+            f"Message: {message}\n"
+            f"Relevant Knowledge: \n{ctx}\n\n"
             "Return a JSON object with keys: explanation, fix, references (list of URLs)."
         )
 
@@ -124,7 +128,12 @@ class LLMClient:
             parsed = json.loads(out_text)
             # ensure keys
             return {
-                "explanation": parsed.get("explanation") or parsed.get("explain") or parsed.get("description") or str(parsed),
+                "explanation": (
+                    parsed.get("explanation")
+                    or parsed.get("explain")
+                    or parsed.get("description")
+                    or str(parsed)
+                ),
                 "fix": parsed.get("fix") or parsed.get("remediation") or "",
                 "references": parsed.get("references") or parsed.get("refs") or [],
             }
@@ -161,9 +170,13 @@ class LLMClient:
         ctx = "\n".join([p for p in ctx_parts if p])
 
         prompt = (
-            f"You are a senior application security engineer. Explain the following code issue in simple language, describe the impact, and provide a concise fix plus references.\n"
-            f"Issue Type: {itype}\nLine: {issue.get('line')}\nSnippet: {snippet}\nMessage: {message}\n"
-            f"Relevant Knowledge:\n{ctx}\n\n"
+            f"You are a senior application security engineer. Explain the following code issue in simple language, "
+            f"describe the impact, and provide a concise fix plus references.\n"
+            f"Issue Type: {itype}\n"
+            f"Line: {issue.get('line')}\n"
+            f"Snippet: {snippet}\n"
+            f"Message: {message}\n"
+            f"Relevant Knowledge: \n{ctx}\n\n"
             "Return a JSON object with keys: explanation, fix, references (list of URLs)."
         )
 
@@ -173,7 +186,12 @@ class LLMClient:
 
             parsed = json.loads(out_text)
             return {
-                "explanation": parsed.get("explanation") or parsed.get("explain") or parsed.get("description") or str(parsed),
+                "explanation": (
+                    parsed.get("explanation")
+                    or parsed.get("explain")
+                    or parsed.get("description")
+                    or str(parsed)
+                ),
                 "fix": parsed.get("fix") or parsed.get("remediation") or "",
                 "references": parsed.get("references") or parsed.get("refs") or [],
             }
@@ -196,43 +214,96 @@ class LLMClient:
 
         templates = {
             "hardcoded secret": {
-                "explanation": "This file contains a hardcoded secret or credential in source code which can be read by anyone with repository access.",
-                "fix": "Remove the secret from source control. Use environment variables, a .env file kept out of VCS, or a secret store (HashiCorp Vault, AWS Secrets Manager). Rotate the credential immediately if it was committed.",
-                "references": ["https://owasp.org/www-project-top-ten/", "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"],
+                "explanation": (
+                    "This file contains a hardcoded secret or credential in source code which can be read "
+                    "by anyone with repository access."
+                ),
+                "fix": (
+                    "Remove the secret from source control. Use environment variables, a .env file kept "
+                    "out of VCS, or a secret store (HashiCorp Vault, AWS Secrets Manager). "
+                    "Rotate the credential immediately if it was committed."
+                ),
+                "references": [
+                    "https://owasp.org/www-project-top-ten/",
+                    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html",
+                ],
             },
             "possible sql injection": {
-                "explanation": "This code constructs SQL statements by concatenating strings or by formatting them directly. Attackers can inject SQL fragments through inputs, leading to data leakage or corruption.",
-                "fix": "Use parameterized queries (e.g., cursor.execute(sql, params)) or ORM query builders to avoid direct string composition of SQL. Validate and sanitize inputs.",
-                "references": ["https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html"],
+                "explanation": (
+                    "This code constructs SQL statements by concatenating strings or by formatting them "
+                    "directly. Attackers can inject SQL fragments through inputs, leading to data leakage "
+                    "or corruption."
+                ),
+                "fix": (
+                    "Use parameterized queries (e.g., cursor.execute(sql, params)) or ORM query builders "
+                    "to avoid direct string composition of SQL. Validate and sanitize inputs."
+                ),
+                "references": [
+                    "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+                ],
             },
             "insecure function usage": {
-                "explanation": "Use of functions like eval() or exec() can execute arbitrary code and should be avoided, especially on user-controlled inputs.",
-                "fix": "Replace eval/exec with safer alternatives. For parsing expressions use ast.literal_eval or write a simple parser. Validate inputs strictly.",
+                "explanation": (
+                    "Use of functions like eval() or exec() can execute arbitrary code and should be "
+                    "avoided, especially on user-controlled inputs."
+                ),
+                "fix": (
+                    "Replace eval/exec with safer alternatives. For parsing expressions use "
+                    "ast.literal_eval or write a simple parser. Validate inputs strictly."
+                ),
                 "references": ["https://owasp.org/www-community/"],
             },
             "deprecated hash": {
-                "explanation": "MD5 and SHA1 are considered cryptographically broken or weak for collision resistance and should not be used for security-sensitive hashing.",
-                "fix": "Use hashlib.sha256 or a stronger function and use salt + PBKDF2 / bcrypt / scrypt / Argon2 for password hashing.",
+                "explanation": (
+                    "MD5 and SHA1 are considered cryptographically broken or weak for collision "
+                    "resistance and should not be used for security-sensitive hashing."
+                ),
+                "fix": (
+                    "Use hashlib.sha256 or a stronger function and use salt + PBKDF2 / bcrypt / scrypt "
+                    "/ Argon2 for password hashing."
+                ),
                 "references": ["https://owasp.org/www-project-top-ten/"],
             },
             "suspicious subprocess call": {
-                "explanation": "Calling subprocess APIs with unsanitized inputs or with shell=True can allow command injection or execution of unintended commands.",
-                "fix": "Avoid shell=True and pass arguments as a list. Validate and sanitize any inputs used in command construction.",
+                "explanation": (
+                    "Calling subprocess APIs with unsanitized inputs or with shell=True can allow command "
+                    "injection or execution of unintended commands."
+                ),
+                "fix": (
+                    "Avoid shell=True and pass arguments as a list. Validate and sanitize any inputs "
+                    "used in command construction."
+                ),
                 "references": ["https://cheatsheetseries.owasp.org/"],
             },
             "insecure regex": {
-                "explanation": "Overly-broad regex patterns like '.*' can match unintended input and can cause catastrophic backtracking.",
-                "fix": "Use more specific regexes and apply input length limits. Consider non-greedy qualifiers and anchors as appropriate.",
+                "explanation": (
+                    "Overly-broad regex patterns like '.*' can match unintended input and can cause "
+                    "catastrophic backtracking."
+                ),
+                "fix": (
+                    "Use more specific regexes and apply input length limits. Consider non-greedy "
+                    "qualifiers and anchors as appropriate."
+                ),
                 "references": ["https://owasp.org/www-community/"],
             },
         }
 
         choice = templates.get(itype, None)
         if choice:
-            return {"explanation": choice["explanation"], "fix": choice["fix"], "references": choice["references"]}
+            return {
+                "explanation": choice["explanation"],
+                "fix": choice["fix"],
+                "references": choice["references"],
+            }
 
         return {
-            "explanation": f"Detected issue of type '{issue.get('type')}'. {issue.get('message', '')}",
-            "fix": "Investigate the finding and apply recommended best-practices (parameterization, secrets management, or safer library APIs).",
+            "explanation": (
+                f"Detected issue of type '{issue.get('type')}'. {issue.get('message', '')} "
+                f"{snippet}"
+            ),
+            "fix": (
+                "Investigate the finding and apply recommended best-practices (parameterization, "
+                "secrets management, or safer library APIs)."
+            ),
             "references": ["https://owasp.org/www-project-top-ten/"],
         }
