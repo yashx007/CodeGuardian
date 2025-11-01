@@ -151,9 +151,9 @@ def _scan_and_pack(filename: str, content: str):
 @app.post("/upload")
 async def upload(
     files: List[UploadFile] = File(None),
-    code: str = Form(None),
-    filename: str = Form(None),
-    url: str = Form(None),
+    code: Optional[str] = Form(None),
+    filename: Optional[str] = Form(None),
+    url: Optional[str] = Form(None),
 ):
     """Accept multiple upload modes: files (single/multiple/archives), pasted
     code, or a URL.
@@ -233,11 +233,11 @@ async def upload(
 
 @app.post("/analyze")
 async def analyze(
-    stage2: dict = None,
+    stage2: Optional[dict] = None,
     files: List[UploadFile] = File(None),
-    code: str = Form(None),
-    filename: str = Form(None),
-    backend: str = None,
+    code: Optional[str] = Form(None),
+    filename: Optional[str] = Form(None),
+    backend: Optional[str] = None,
 ):
     """Analyze input using Stage 2 parser and Stage 3 reasoner.
 
@@ -278,8 +278,9 @@ async def analyze(
     if code is not None:
         fn = filename or "pasted.py"
         # write to temp file? stage2 parser accepts path -> use analyze_code by writing to a temporary path
-        # But parser.analyze_code accepts file path string and loads file - instead we can call parser.analyze_code by using a small helper
-        # Simpler: call stage2_parser.analyze_code by creating a temporary file on disk
+    # Note: parser.analyze_code accepts a file path string and loads the file.
+    # To analyze pasted code we create a temporary file and pass its path
+    # to the existing analyzer rather than trying to call internal helpers.
         import tempfile
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=True) as tf:
@@ -293,7 +294,7 @@ async def analyze(
 
 
 @app.get("/summary")
-def summary(path: str = None):
+def summary(path: Optional[str] = None):
     """Run a scan on a path and return severity breakdown and top risky files.
 
     If path is omitted, returns an empty summary.

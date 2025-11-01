@@ -35,10 +35,9 @@ class FakeNIMClient:
         payload = {
             "explanation": "This is a mocked explanation for testing.",
             "fix": "Apply recommended best practices.",
-            "references": ["http://example.com/mock"]
+            "references": ["http://example.com/mock"],
         }
         return json.dumps(payload)
-
 
 
 def pytest_configure(config):
@@ -57,8 +56,8 @@ def pytest_configure(config):
     except Exception:
         pass
 
-# Ensure project root is on sys.path so tests can import
-# `app` and `agent` packages.
+
+# Ensure project root is on sys.path so tests can import `app` and `agent` packages.
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)

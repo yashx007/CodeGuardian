@@ -28,7 +28,12 @@ except Exception:
 
 
 class NIMClient:
-    def __init__(self, inference_url: Optional[str] = None, embedding_url: Optional[str] = None, api_key: Optional[str] = None):
+    def __init__(
+        self,
+        inference_url: Optional[str] = None,
+        embedding_url: Optional[str] = None,
+        api_key: Optional[str] = None,
+    ):
         # Support either explicit URLs or model-based construction using NIM_BASE_URL
         self.inference_url = inference_url or os.environ.get("NIM_INFERENCE_URL")
         self.embedding_url = embedding_url or os.environ.get("NIM_EMBEDDING_URL")
@@ -94,12 +99,27 @@ class NIMClient:
                 messages = kwargs.pop('messages', None)
                 if messages is None:
                     messages = [{"role": "user", "content": prompt}]
-                payload = {"model": self.inference_model, "messages": messages, "max_tokens": max_tokens, **kwargs}
-                r = requests.post(self.inference_url, json=payload, headers=self._headers(self.inference_api_key), timeout=15)
+                payload = {
+                    "model": self.inference_model,
+                    "messages": messages,
+                    "max_tokens": max_tokens,
+                    **kwargs,
+                }
+                r = requests.post(
+                    self.inference_url,
+                    json=payload,
+                    headers=self._headers(self.inference_api_key),
+                    timeout=15,
+                )
                 r.raise_for_status()
                 data = r.json()
                 # Integrate v1 returns choices with message.content
-                if isinstance(data, dict) and "choices" in data and isinstance(data["choices"], list) and data["choices"]:
+                if (
+                    isinstance(data, dict)
+                    and "choices" in data
+                    and isinstance(data["choices"], list)
+                    and data["choices"]
+                ):
                     first = data["choices"][0]
                     # choice may be {'message': {'content': '...'}} or {'text': '...'}
                     if isinstance(first, dict):
@@ -115,8 +135,17 @@ class NIMClient:
                 return str(data)
             else:
                 # legacy model infer endpoint (prompt-based)
-                payload = {"prompt": prompt, "max_tokens": max_tokens, **kwargs}
-                r = requests.post(self.inference_url, json=payload, headers=self._headers(self.inference_api_key), timeout=10)
+                payload = {
+                    "prompt": prompt,
+                    "max_tokens": max_tokens,
+                    **kwargs,
+                }
+                r = requests.post(
+                    self.inference_url,
+                    json=payload,
+                    headers=self._headers(self.inference_api_key),
+                    timeout=10,
+                )
                 r.raise_for_status()
                 data = r.json()
                 if "text" in data:
@@ -171,8 +200,17 @@ class NIMClient:
         if not requests or not self.inference_url:
             return None
         try:
-            payload = {"model": self.inference_model, "messages": [{"role": "user", "content": prompt}], "max_tokens": max_tokens}
-            r = requests.post(self.inference_url, json=payload, headers=self._headers(self.inference_api_key), timeout=15)
+            payload = {
+                "model": self.inference_model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+            }
+            r = requests.post(
+                self.inference_url,
+                json=payload,
+                headers=self._headers(self.inference_api_key),
+                timeout=15,
+            )
             r.raise_for_status()
             return r.json()
         except Exception:
@@ -235,7 +273,12 @@ class NIMClient:
 
         # Fallback: try legacy payload shape commonly used by other deployments
         try:
-            r = requests.post(self.embedding_url, json=legacy_payload, headers=self._headers(self.embedding_api_key), timeout=15)
+            r = requests.post(
+                self.embedding_url,
+                json=legacy_payload,
+                headers=self._headers(self.embedding_api_key),
+                timeout=15,
+            )
             r.raise_for_status()
             data = r.json()
             parsed = _parse_embedding_response(data)
