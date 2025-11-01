@@ -6,8 +6,20 @@ from agent.reasoning import Reasoner
 def test_reasoner_enrich_with_mocked_llm():
     # Prepare a simple finding with types that map to severities
     findings = [
-        {"file": "input/test_insecure.py", "type": "Hardcoded Secret", "line": 7, "snippet": "password = 'hunter2'", "message": "Hardcoded credential"},
-        {"file": "input/test_insecure.py", "type": "Deprecated Hash", "line": 26, "snippet": "hashlib.md5(b'data')", "message": "Use of MD5"},
+        {
+            "file": "input/test_insecure.py",
+            "type": "Hardcoded Secret",
+            "line": 7,
+            "snippet": "password = 'hunter2'",
+            "message": "Hardcoded credential",
+        },
+        {
+            "file": "input/test_insecure.py",
+            "type": "Deprecated Hash",
+            "line": 26,
+            "snippet": "hashlib.md5(b'data')",
+            "message": "Use of MD5",
+        },
     ]
 
     r = Reasoner(llm_mode="offline")
@@ -48,7 +60,15 @@ def test_reasoner_enrich_with_mocked_llm():
     assert "explanation" in secret_issue and secret_issue["explanation"].startswith("Credentials")
 
     # check deprecated hash mapped to Medium
-    dep = next((i for i in issues if "deprecated" in (i.get("type") or "").lower() or "md5" in (i.get("snippet") or "")), None)
+    dep = next(
+        (
+            i
+            for i in issues
+            if "deprecated" in (i.get("type") or "").lower()
+            or "md5" in (i.get("snippet") or "")
+        ),
+        None,
+    )
     assert dep is not None
     assert dep.get("severity") == "Medium"
     assert "MD5" in dep.get("explanation") or "md5" in dep.get("snippet").lower()

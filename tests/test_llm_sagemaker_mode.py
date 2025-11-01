@@ -7,13 +7,27 @@ from agent.llm_client import LLMClient
 def test_llmclient_sagemaker_parses_json(monkeypatch):
     # Fake SageMaker client with explain returning JSON string
     fake_sm = MagicMock()
-    fake_sm.explain.return_value = json.dumps({"explanation": "ex", "fix": "do it", "references": ["http://x"]})
+    fake_sm.explain.return_value = json.dumps(
+        {
+            "explanation": "ex",
+            "fix": "do it",
+            "references": ["http://x"],
+        }
+    )
 
     # Patch SageMakerClient used by LLMClient
     monkeypatch.setattr("agent.llm_client.SageMakerClient", lambda *args, **kwargs: fake_sm)
 
     client = LLMClient(mode="sagemaker")
-    res = client.explain({"type": "hardcoded secret", "line": 1, "snippet": "pw='x'", "message": "secret"}, context={})
+    res = client.explain(
+        {
+            "type": "hardcoded secret",
+            "line": 1,
+            "snippet": "pw='x'",
+            "message": "secret",
+        },
+        context={},
+    )
     assert res["explanation"] == "ex"
     assert res["fix"] == "do it"
     assert isinstance(res["references"], list)
