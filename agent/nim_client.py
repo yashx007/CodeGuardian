@@ -217,7 +217,12 @@ class NIMClient:
 
         # Try integrate-style request first
         try:
-            r = requests.post(self.embedding_url, json=integrate_payload, headers=self._headers(self.embedding_api_key), timeout=15)
+            r = requests.post(
+                self.embedding_url,
+                json=integrate_payload,
+                headers=self._headers(self.embedding_api_key),
+                timeout=15,
+            )
             # allow server to respond with status to indicate missing fields
             r.raise_for_status()
             data = r.json()

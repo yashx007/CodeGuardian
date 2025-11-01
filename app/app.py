@@ -280,8 +280,8 @@ async def analyze(stage2: dict = None, files: List[UploadFile] = File(None), cod
             tf.write(code)
             tf.flush()
             issues = stage2_parser.analyze_code(tf.name)
-    enriched = req_reasoner.enrich({fn: issues})
-        return JSONResponse(enriched)
+            enriched = req_reasoner.enrich({fn: issues})
+            return JSONResponse(enriched)
 
     return JSONResponse({"error": "No input provided to analyze"}, status_code=400)
 
