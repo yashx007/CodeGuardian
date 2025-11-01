@@ -8,17 +8,31 @@ def test_online_prompt_includes_retrieved(monkeypatch):
     fake_nim = MagicMock()
 
     # fake explain returns a JSON string
-    fake_nim.explain.return_value = '{"explanation": "ok", "fix": "fix it", "references": ["http://example.com"]}'
+    fake_nim.explain.return_value = (
+        '{"explanation": "ok", "fix": "fix it", '
+        '"references": ["http://example.com"]}'
+    )
     client.nim = fake_nim
     client.online_available = True
 
-    issue = {"type": "hardcoded secret", "line": 10, "snippet": "password = 'hunter2'", "message": "Found password"}
+    issue = {
+        "type": "hardcoded secret",
+        "line": 10,
+        "snippet": "password = 'hunter2'",
+        "message": "Found password",
+    }
     context = {
         "file": "input/test_insecure.py",
         "kb": {
             "summary": "Secrets must not be committed.",
-            "retrieved": [{"id": "hardcoded secret", "score": 0.9, "text": "Use environment variables and secret managers."}]
-        }
+            "retrieved": [
+                {
+                    "id": "hardcoded secret",
+                    "score": 0.9,
+                    "text": "Use environment variables and secret managers.",
+                }
+            ],
+        },
     }
 
     res = client._explain_online(issue, context)

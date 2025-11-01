@@ -41,6 +41,14 @@ def test_llmclient_sagemaker_parses_text_fallback(monkeypatch):
     monkeypatch.setattr("agent.llm_client.SageMakerClient", lambda *args, **kwargs: fake_sm)
 
     client = LLMClient(mode="sagemaker")
-    res = client.explain({"type": "insecure function", "line": 5, "snippet": "eval(x)", "message": "use of eval"}, context={})
+    res = client.explain(
+        {
+            "type": "insecure function",
+            "line": 5,
+            "snippet": "eval(x)",
+            "message": "use of eval",
+        },
+        context={},
+    )
     assert "Fix" in res["fix"] or "fix" in res["fix"].lower()
     assert any(r.startswith("http") for r in res["references"]) or res["references"] == []

@@ -1,5 +1,7 @@
 import json
 import hashlib
+import os
+import sys
 from typing import List
 
 
@@ -53,8 +55,6 @@ def pytest_configure(config):
         ks_mod.NIMClient = FakeNIMClient
     except Exception:
         pass
-import os
-import sys
 
 # Ensure project root is on sys.path so tests can import
 # `app` and `agent` packages.
