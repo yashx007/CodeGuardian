@@ -40,6 +40,7 @@ class FakeNIMClient:
         return json.dumps(payload)
 
 
+
 def pytest_configure(config):
     # Inject FakeNIMClient into modules that import NIMClient so tests run offline.
     # Do NOT overwrite agent.nim_client.NIMClient (some tests assert parsing

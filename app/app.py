@@ -1,13 +1,10 @@
-from typing import List, Optional
-from dotenv import load_dotenv
-
-# Load local .env for development (safe: .env is gitignored)
-load_dotenv()
 import io
 import zipfile
 import tarfile
 import asyncio
 import urllib.request
+from typing import List, Optional
+from dotenv import load_dotenv
 
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -17,6 +14,9 @@ from agent.engine import engine
 from agent import parser as stage2_parser
 from agent.reasoning import reasoner, Reasoner
 
+
+# Load local .env for development (safe: .env is gitignored)
+load_dotenv()
 
 app = FastAPI(title="CodeGuardian API")
 
@@ -232,7 +232,13 @@ async def upload(
 
 
 @app.post("/analyze")
-async def analyze(stage2: dict = None, files: List[UploadFile] = File(None), code: str = Form(None), filename: str = Form(None), backend: str = None):
+async def analyze(
+    stage2: dict = None,
+    files: List[UploadFile] = File(None),
+    code: str = Form(None),
+    filename: str = Form(None),
+    backend: str = None,
+):
     """Analyze input using Stage 2 parser and Stage 3 reasoner.
 
     Modes:
@@ -293,7 +299,11 @@ def summary(path: str = None):
     If path is omitted, returns an empty summary.
     """
     if not path:
-        return JSONResponse({"summary": {"counts": {}, "risk": "Unknown", "total_issues": 0}})
+        return JSONResponse(
+            {
+                "summary": {"counts": {}, "risk": "Unknown", "total_issues": 0}
+            }
+        )
 
     findings = stage2_parser.analyze_path(path, recursive=True)
     enriched = reasoner.enrich(findings)
