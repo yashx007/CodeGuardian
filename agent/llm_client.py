@@ -37,23 +37,33 @@ class LLMClient:
         if self.mode == "nim" and NIMClient is not None:
             try:
                 self.nim = NIMClient()
-                if getattr(self.nim, "inference_url", None) or getattr(self.nim, "embedding_url", None):
+                if getattr(self.nim, "inference_url", None) or getattr(
+                    self.nim, "embedding_url", None
+                ):
                     self.online_available = True
             except Exception:
-                logger.warning("Failed to initialize NIM client; falling back to offline")
+                logger.warning(
+                    "Failed to initialize NIM client; falling back to offline"
+                )
                 self.mode = "offline"
 
         if self.mode == "sagemaker" and SageMakerClient is not None:
             try:
                 self.sagemaker = SageMakerClient()
                 # available if endpoint env var present
-                if getattr(self.sagemaker, "llm_endpoint", None) or getattr(self.sagemaker, "embedding_endpoint", None):
+                if getattr(self.sagemaker, "llm_endpoint", None) or getattr(
+                    self.sagemaker, "embedding_endpoint", None
+                ):
                     self.online_available = True
             except Exception:
-                logger.warning("Failed to initialize SageMaker client; falling back to offline")
+                logger.warning(
+                    "Failed to initialize SageMaker client; falling back to offline"
+                )
                 self.mode = "offline"
 
-    def explain(self, issue: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def explain(
+        self, issue: Dict[str, Any], context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Produce an explanation/fix/references for a single issue.
 
         If online mode is enabled the NIM inference endpoint will be called with a
@@ -76,19 +86,27 @@ class LLMClient:
                 logger.exception("Online LLM failed; falling back to offline templates")
                 self._last_explain_used_online = False
                 return self._explain_offline(issue, context)
-        if self.mode == "sagemaker" and self.online_available and self.sagemaker is not None:
+        if (
+            self.mode == "sagemaker"
+            and self.online_available
+            and self.sagemaker is not None
+        ):
             try:
                 out = self._explain_sagemaker(issue, context)
                 self._last_explain_used_online = True
                 return out
             except Exception:
-                logger.exception("SageMaker LLM failed; falling back to offline templates")
+                logger.exception(
+                    "SageMaker LLM failed; falling back to offline templates"
+                )
                 self._last_explain_used_online = False
                 return self._explain_offline(issue, context)
 
         return self._explain_offline(issue, context)
 
-    def _explain_online(self, issue: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _explain_online(
+        self, issue: Dict[str, Any], context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         # Build a structured prompt including KB/context if provided
         itype = issue.get("type", "Issue")
         snippet = issue.get("snippet", "")
@@ -100,7 +118,11 @@ class LLMClient:
             if kb.get("summary"):
                 ctx_parts.append(kb.get("summary"))
             # include any retrieved texts to provide concrete best-practices
-            for r in kb.get("retrieved", []) if isinstance(kb.get("retrieved", []), list) else []:
+            for r in (
+                kb.get("retrieved", [])
+                if isinstance(kb.get("retrieved", []), list)
+                else []
+            ):
                 # r expected to be dict with 'text' or tuple-like
                 if isinstance(r, dict) and r.get("text"):
                     ctx_parts.append(r.get("text"))
@@ -129,7 +151,10 @@ class LLMClient:
             # ensure keys
             return {
                 "explanation": (
-                    parsed.get("explanation") or parsed.get("explain") or parsed.get("description") or str(parsed)
+                    parsed.get("explanation")
+                    or parsed.get("explain")
+                    or parsed.get("description")
+                    or str(parsed)
                 ),
                 "fix": parsed.get("fix") or parsed.get("remediation") or "",
                 "references": parsed.get("references") or parsed.get("refs") or [],
@@ -143,12 +168,14 @@ class LLMClient:
             # look for 'Fix:' or 'Remediation:' markers
             for i, l in enumerate(lines):
                 if l.lower().startswith("fix:") or l.lower().startswith("remediation:"):
-                    fix = " ".join(lines[i:i + 3])
+                    fix = " ".join(lines[i : i + 3])
                 if l.lower().startswith("http"):
                     refs.append(l.strip())
             return {"explanation": explanation, "fix": fix, "references": refs}
 
-    def _explain_sagemaker(self, issue: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _explain_sagemaker(
+        self, issue: Dict[str, Any], context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         # reuse same prompt construction as _explain_online
         itype = issue.get("type", "Issue")
         snippet = issue.get("snippet", "")
@@ -158,7 +185,11 @@ class LLMClient:
             kb = context.get("kb", {}) or {}
             if kb.get("summary"):
                 ctx_parts.append(kb.get("summary"))
-            for r in kb.get("retrieved", []) if isinstance(kb.get("retrieved", []), list) else []:
+            for r in (
+                kb.get("retrieved", [])
+                if isinstance(kb.get("retrieved", []), list)
+                else []
+            ):
                 if isinstance(r, dict) and r.get("text"):
                     ctx_parts.append(r.get("text"))
                 elif isinstance(r, (list, tuple)) and len(r) > 2:
@@ -184,7 +215,10 @@ class LLMClient:
             parsed = json.loads(out_text)
             return {
                 "explanation": (
-                    parsed.get("explanation") or parsed.get("explain") or parsed.get("description") or str(parsed)
+                    parsed.get("explanation")
+                    or parsed.get("explain")
+                    or parsed.get("description")
+                    or str(parsed)
                 ),
                 "fix": parsed.get("fix") or parsed.get("remediation") or "",
                 "references": parsed.get("references") or parsed.get("refs") or [],
@@ -197,12 +231,14 @@ class LLMClient:
             refs = []
             for i, l in enumerate(lines):
                 if l.lower().startswith("fix:") or l.lower().startswith("remediation:"):
-                    fix = " ".join(lines[i:i + 3])
+                    fix = " ".join(lines[i : i + 3])
                 if l.lower().startswith("http"):
                     refs.append(l.strip())
             return {"explanation": explanation, "fix": fix, "references": refs}
 
-    def _explain_offline(self, issue: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _explain_offline(
+        self, issue: Dict[str, Any], context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         itype = (issue.get("type") or "Unknown").lower()
         snippet = issue.get("snippet") or ""
 
@@ -291,7 +327,10 @@ class LLMClient:
             }
 
         return {
-            "explanation": (f"Detected issue of type '{issue.get('type')}'. {issue.get('message', '')} " f"{snippet}"),
+            "explanation": (
+                f"Detected issue of type '{issue.get('type')}'. {issue.get('message', '')} "
+                f"{snippet}"
+            ),
             "fix": (
                 "Investigate the finding and apply recommended best-practices (parameterization, "
                 "secrets management, or safer library APIs)."
