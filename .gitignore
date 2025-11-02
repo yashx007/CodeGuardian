@@ -69,3 +69,10 @@ npm-debug.log
 
 # Misc
 *.sqlite3
+
+
+Plan.txt# Plan file
+Plan.txt
+ 
+# Ignore generated demo output files
+Output/
