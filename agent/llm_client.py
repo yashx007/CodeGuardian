@@ -143,7 +143,7 @@ class LLMClient:
             # look for 'Fix:' or 'Remediation:' markers
             for i, l in enumerate(lines):
                 if l.lower().startswith("fix:") or l.lower().startswith("remediation:"):
-                    fix = " ".join(lines[i : i + 3])
+                    fix = " ".join(lines[i:i + 3])
                 if l.lower().startswith("http"):
                     refs.append(l.strip())
             return {"explanation": explanation, "fix": fix, "references": refs}
@@ -197,7 +197,7 @@ class LLMClient:
             refs = []
             for i, l in enumerate(lines):
                 if l.lower().startswith("fix:") or l.lower().startswith("remediation:"):
-                    fix = " ".join(lines[i : i + 3])
+                    fix = " ".join(lines[i:i + 3])
                 if l.lower().startswith("http"):
                     refs.append(l.strip())
             return {"explanation": explanation, "fix": fix, "references": refs}
