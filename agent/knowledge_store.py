@@ -24,6 +24,7 @@ except Exception:
     np = None  # type: ignore
 
 from .nim_client import NIMClient
+
 try:
     from .aws_client import SageMakerClient
 except Exception:
@@ -59,7 +60,11 @@ def _mock_embed(texts: List[str], dim: int = 128) -> List[List[float]]:
 
 
 class KnowledgeStore:
-    def __init__(self, entries: Optional[List[Tuple[str, str]]] = None, index_path: Optional[str] = None):
+    def __init__(
+        self,
+        entries: Optional[List[Tuple[str, str]]] = None,
+        index_path: Optional[str] = None,
+    ):
         """entries: list of (id, text) tuples
 
         index_path: optional path to persist/load a FAISS index and metadata.
@@ -92,11 +97,18 @@ class KnowledgeStore:
                 logger.debug("No persisted index found at %s", self.index_path)
 
         # try to build FAISS index if possible
-        if self.index is None and faiss and self.nim and getattr(self.nim, "embedding_url", None):
+        if (
+            self.index is None
+            and faiss
+            and self.nim
+            and getattr(self.nim, "embedding_url", None)
+        ):
             try:
                 self.build_index()
             except Exception:
-                logger.exception("Failed to build FAISS index; will use brute-force fallback")
+                logger.exception(
+                    "Failed to build FAISS index; will use brute-force fallback"
+                )
 
     def build_index(self, force: bool = False):
         """Build FAISS index (or rebuild). If NIM is not available, falls back to
@@ -123,7 +135,9 @@ class KnowledgeStore:
             try:
                 return self.nim.embed(texts)
             except Exception:
-                logger.exception("NIM embedding failed; falling back to mock embeddings")
+                logger.exception(
+                    "NIM embedding failed; falling back to mock embeddings"
+                )
         # fallback deterministic embeddings
         return _mock_embed(texts)
 
@@ -137,7 +151,9 @@ class KnowledgeStore:
             import json
 
             with open(meta_path, "w", encoding="utf-8") as fh:
-                json.dump({"ids": self.ids, "texts": self.texts}, fh, ensure_ascii=False)
+                json.dump(
+                    {"ids": self.ids, "texts": self.texts}, fh, ensure_ascii=False
+                )
         except Exception:
             logger.exception("Failed to write metadata for index")
 
@@ -174,7 +190,9 @@ class KnowledgeStore:
                     results.append((self.ids[idx], float(dist), self.texts[idx]))
                 return results
             except Exception:
-                logger.exception("Embedding/FAISS query failed; falling back to brute-force")
+                logger.exception(
+                    "Embedding/FAISS query failed; falling back to brute-force"
+                )
 
         # Brute-force embedding + similarity
         embs = self._compute_embeddings(self.texts)
@@ -183,7 +201,9 @@ class KnowledgeStore:
             arr = np.array(embs).astype("float32")
             qv = np.array(q_emb).astype("float32")
             # cosine similarity
-            sims = (arr @ qv) / (np.linalg.norm(arr, axis=1) * (np.linalg.norm(qv) + 1e-12) + 1e-12)
+            sims = (arr @ qv) / (
+                np.linalg.norm(arr, axis=1) * (np.linalg.norm(qv) + 1e-12) + 1e-12
+            )
             idxs = list(reversed(np.argsort(sims)))
             results = []
             for i in idxs[:top_k]:
@@ -199,7 +219,9 @@ class KnowledgeStore:
 
             sims = [dot(q_emb, e) / (norm(q_emb) * norm(e)) for e in embs]
             ranked = sorted(range(len(sims)), key=lambda i: sims[i], reverse=True)
-            return [(self.ids[i], float(sims[i]), self.texts[i]) for i in ranked[:top_k]]
+            return [
+                (self.ids[i], float(sims[i]), self.texts[i]) for i in ranked[:top_k]
+            ]
 
     def add_entry(self, eid: str, text: str):
         self.ids.append(eid)
@@ -226,9 +248,17 @@ def _cli():
     import argparse
 
     parser = argparse.ArgumentParser(description="KnowledgeStore index utility")
-    parser.add_argument("--build", action="store_true", help="Build a FAISS index from the bundled KB entries")
-    parser.add_argument("--out", help="Path to write FAISS index (e.g. data/index.faiss)")
-    parser.add_argument("--force", action="store_true", help="Force rebuild even if index exists")
+    parser.add_argument(
+        "--build",
+        action="store_true",
+        help="Build a FAISS index from the bundled KB entries",
+    )
+    parser.add_argument(
+        "--out", help="Path to write FAISS index (e.g. data/index.faiss)"
+    )
+    parser.add_argument(
+        "--force", action="store_true", help="Force rebuild even if index exists"
+    )
     args = parser.parse_args()
 
     if not args.build:
@@ -259,7 +289,9 @@ def _cli():
         except Exception as e:
             print("Failed to build/save index:", e)
     else:
-        print("FAISS or numpy not available; cannot build index. Use --mock in eval scripts for CI.")
+        print(
+            "FAISS or numpy not available; cannot build index. Use --mock in eval scripts for CI."
+        )
 
 
 if __name__ == "__main__":

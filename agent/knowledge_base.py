@@ -33,7 +33,7 @@ KB: Dict[str, Dict[str, object]] = {
             "Unparameterized SQL or string-built queries can allow SQL injection "
             "attacks. Prefer parameterized queries or ORM APIs."
         ),
-        "examples": ["cursor.execute(f\"SELECT * FROM users WHERE id = {user_id}\")"],
+        "examples": ['cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")'],
         "fix": (
             "Use parameterized queries (prepared statements) or an ORM. "
             "Validate and sanitize user inputs and use least-privilege DB users."
@@ -207,7 +207,7 @@ KB: Dict[str, Dict[str, object]] = {
             "Cross-Site Request Forgery (CSRF) tricks authenticated users into "
             "making unintended state-changing requests."
         ),
-        "examples": ["<img src=\"https://app.example.com/transfer?amt=100\">"],
+        "examples": ['<img src="https://app.example.com/transfer?amt=100">'],
         "fix": "Use anti-CSRF tokens, SameSite cookies, and require re-authentication for sensitive actions.",
         "references": [
             "https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html",
@@ -218,7 +218,7 @@ KB: Dict[str, Dict[str, object]] = {
             "XML External Entity (XXE) processing can allow disclosure of local "
             "files or SSRF when XML parsers resolve external entities."
         ),
-        "examples": ["<!ENTITY xxe SYSTEM \"file:///etc/passwd\">"],
+        "examples": ['<!ENTITY xxe SYSTEM "file:///etc/passwd">'],
         "fix": "Disable external entity processing or use safer parsing libraries configured to disallow DTDs.",
         "references": [
             "https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html",
@@ -270,7 +270,7 @@ KB: Dict[str, Dict[str, object]] = {
     "rate limiting missing": {
         "summary": "Lack of rate limiting can enable brute-force, scraping, or abuse of endpoints.",
         "fix": "Implement per-IP and per-account rate limits and progressive backoff on failed auth attempts.",
-        "references": ["https://cheatsheetseries.owasp.org/"]
+        "references": ["https://cheatsheetseries.owasp.org/"],
     },
     "large file upload": {
         "summary": "Unrestricted file uploads can exhaust resources or allow storage of malicious content.",
@@ -372,28 +372,28 @@ KB: Dict[str, Dict[str, object]] = {
     "improper session management": {
         "summary": "Sessions that aren't invalidated, rotated, or bound to the user context can be hijacked.",
         "fix": "Rotate session identifiers after privilege changes, set secure cookie flags, and invalidate on logout.",
-        "references": ["https://cheatsheetseries.owasp.org/"]
+        "references": ["https://cheatsheetseries.owasp.org/"],
     },
     "weak randomness": {
         "summary": "Using weak RNGs for tokens or keys (e.g., random.random()) can lead to predictable secrets.",
         "fix": "Use cryptographically secure RNGs from the OS (secrets module, /dev/urandom, CryptGenRandom).",
-        "references": ["https://cheatsheetseries.owasp.org/"]
+        "references": ["https://cheatsheetseries.owasp.org/"],
     },
     "missing rate limiting on auth": {
         "summary": "Without rate limiting, authentication endpoints can be brute-forced or abused.",
         "fix": "Apply IP- and account-based rate limits, introduce exponential backoff and lockouts.",
-        "references": ["https://cheatsheetseries.owasp.org/"]
+        "references": ["https://cheatsheetseries.owasp.org/"],
     },
     "insecure dependency versions": {
         "summary": "Using outdated libraries with known CVEs exposes applications to known exploits.",
         "fix": "Keep dependencies up-to-date, run vulnerability scanners, and apply patches promptly.",
-        "references": ["https://owasp.org/www-project-top-ten/"]
+        "references": ["https://owasp.org/www-project-top-ten/"],
     },
     "improper certificate validation": {
         "summary": "Skipping TLS certificate validation allows man-in-the-middle attacks.",
         "examples": ["requests.get(url, verify=False)", "rejectUnauthorized: false"],
         "fix": "Always validate TLS certificates and use pinned roots where appropriate.",
-        "references": ["https://cheatsheetseries.owasp.org/"]
+        "references": ["https://cheatsheetseries.owasp.org/"],
     },
     "insecure mobile storage": {
         "summary": (
@@ -406,32 +406,32 @@ KB: Dict[str, Dict[str, object]] = {
     "exposed backup or git artifacts": {
         "summary": "Backup files (.bak, .old) or leftover .git directories can leak source or credentials.",
         "fix": "Remove or restrict access to backups and ensure VCS metadata is not served by web servers.",
-        "references": ["https://cheatsheetseries.owasp.org/"]
+        "references": ["https://cheatsheetseries.owasp.org/"],
     },
     "zip slip": {
         "summary": "Unsafe extraction of archive contents can overwrite arbitrary files via ../ paths (Zip Slip).",
         "fix": "Validate and sanitize extracted paths; restrict extraction to a safe directory and canonicalize paths.",
-        "references": ["https://cheatsheetseries.owasp.org/"]
+        "references": ["https://cheatsheetseries.owasp.org/"],
     },
     "format string vulnerability": {
         "summary": "Uncontrolled format strings (e.g., printf(user_input)) can leak memory or crash programs.",
         "fix": "Do not use user input as format strings; use safe formatting APIs and validate inputs.",
-        "references": ["https://cheatsheetseries.owasp.org/"]
+        "references": ["https://cheatsheetseries.owasp.org/"],
     },
     "integer overflow": {
         "summary": "Unchecked integer operations can overflow, leading to buffer sizing errors or logic bugs.",
         "fix": "Validate numeric ranges, use safe libraries, and check boundaries before allocating buffers.",
-        "references": ["https://cheatsheetseries.owasp.org/"]
+        "references": ["https://cheatsheetseries.owasp.org/"],
     },
     "improper cloud permissions": {
         "summary": "Overly-permissive IAM or cloud roles can let attackers escalate access across services.",
         "fix": "Apply least-privilege IAM, separate duties, and audit cloud permissions regularly.",
-        "references": ["https://cheatsheetseries.owasp.org/"]
+        "references": ["https://cheatsheetseries.owasp.org/"],
     },
     "exposed api keys in build": {
         "summary": "Embedding API keys in build artifacts or CI logs can leak credentials to third parties.",
         "fix": "Use secret variables in CI, redact logs, and avoid writing secrets into build outputs.",
-        "references": ["https://cheatsheetseries.owasp.org/"]
+        "references": ["https://cheatsheetseries.owasp.org/"],
     },
     "certificate pinning missing": {
         "summary": (
@@ -442,17 +442,17 @@ KB: Dict[str, Dict[str, object]] = {
             "Consider certificate pinning for high-security clients and monitor CA trust "
             "changes."
         ),
-        "references": ["https://cheatsheetseries.owasp.org/"]
+        "references": ["https://cheatsheetseries.owasp.org/"],
     },
     "race condition in critical path": {
         "summary": "Race conditions in file or resource access can lead to TOCTOU or privilege escalation.",
         "fix": "Use atomic operations, locks, and design for concurrency safety in critical paths.",
-        "references": ["https://cheatsheetseries.owasp.org/"]
+        "references": ["https://cheatsheetseries.owasp.org/"],
     },
     "privilege escalation": {
         "summary": "Flaws that let unprivileged users perform privileged actions compromise system integrity.",
         "fix": "Harden permission checks, validate role transitions, and audit privilege boundaries.",
-        "references": ["https://cheatsheetseries.owasp.org/"]
+        "references": ["https://cheatsheetseries.owasp.org/"],
     },
     "backup credentials stored in repo": {
         "summary": (
@@ -463,7 +463,7 @@ KB: Dict[str, Dict[str, object]] = {
             "Rotate any exposed credentials and remove them from history (git filter-branch "
             "or BFG)."
         ),
-        "references": ["https://cheatsheetseries.owasp.org/"]
+        "references": ["https://cheatsheetseries.owasp.org/"],
     },
     "missing content security policy": {
         "summary": (
@@ -474,7 +474,7 @@ KB: Dict[str, Dict[str, object]] = {
             "Define a strict CSP that restricts script and resource origins and use "
             "nonce/hashing for inline scripts where needed."
         ),
-        "references": ["https://cheatsheetseries.owasp.org/"]
+        "references": ["https://cheatsheetseries.owasp.org/"],
     },
 }
 

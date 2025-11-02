@@ -31,15 +31,23 @@ def test_reasoner_enrich_with_mocked_llm():
             return {
                 "explanation": "Credentials are hardcoded in source code.",
                 "fix": "Move the secret to environment variables.",
-                "references": ["https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"],
+                "references": [
+                    "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"
+                ],
             }
         if "deprecated" in itype or "md5" in (issue.get("snippet") or "").lower():
             return {
                 "explanation": "MD5 is weak and should not be used for security-sensitive hashing.",
                 "fix": "Use hashlib.sha256 or a password KDF like bcrypt/argon2.",
-                "references": ["https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html"],
+                "references": [
+                    "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html"
+                ],
             }
-        return {"explanation": "Generic explanation.", "fix": "Generic fix.", "references": []}
+        return {
+            "explanation": "Generic explanation.",
+            "fix": "Generic fix.",
+            "references": [],
+        }
 
     # attach fake explain
     r.llm.explain = fake_explain
@@ -54,10 +62,14 @@ def test_reasoner_enrich_with_mocked_llm():
     assert len(issues) == 2
 
     # check that severity mapping applied
-    secret_issue = next((i for i in issues if "secret" in (i.get("type") or "").lower()), None)
+    secret_issue = next(
+        (i for i in issues if "secret" in (i.get("type") or "").lower()), None
+    )
     assert secret_issue is not None
     assert secret_issue.get("severity") == "High"
-    assert "explanation" in secret_issue and secret_issue["explanation"].startswith("Credentials")
+    assert "explanation" in secret_issue and secret_issue["explanation"].startswith(
+        "Credentials"
+    )
 
     # check deprecated hash mapped to Medium
     dep = next(

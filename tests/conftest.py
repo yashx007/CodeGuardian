@@ -47,11 +47,13 @@ def pytest_configure(config):
     # modules that instantiate NIM for online flows (llm_client, knowledge_store).
     try:
         import agent.llm_client as llm_mod
+
         llm_mod.NIMClient = FakeNIMClient
     except Exception:
         pass
     try:
         import agent.knowledge_store as ks_mod
+
         ks_mod.NIMClient = FakeNIMClient
     except Exception:
         pass

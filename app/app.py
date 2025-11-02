@@ -278,9 +278,9 @@ async def analyze(
     if code is not None:
         fn = filename or "pasted.py"
         # write to temp file? stage2 parser accepts path -> use analyze_code by writing to a temporary path
-    # Note: parser.analyze_code accepts a file path string and loads the file.
-    # To analyze pasted code we create a temporary file and pass its path
-    # to the existing analyzer rather than trying to call internal helpers.
+        # Note: parser.analyze_code accepts a file path string and loads the file.
+        # To analyze pasted code we create a temporary file and pass its path
+        # to the existing analyzer rather than trying to call internal helpers.
         import tempfile
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=True) as tf:
@@ -301,9 +301,7 @@ def summary(path: Optional[str] = None):
     """
     if not path:
         return JSONResponse(
-            {
-                "summary": {"counts": {}, "risk": "Unknown", "total_issues": 0}
-            }
+            {"summary": {"counts": {}, "risk": "Unknown", "total_issues": 0}}
         )
 
     findings = stage2_parser.analyze_path(path, recursive=True)

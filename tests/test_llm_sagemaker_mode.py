@@ -16,7 +16,9 @@ def test_llmclient_sagemaker_parses_json(monkeypatch):
     )
 
     # Patch SageMakerClient used by LLMClient
-    monkeypatch.setattr("agent.llm_client.SageMakerClient", lambda *args, **kwargs: fake_sm)
+    monkeypatch.setattr(
+        "agent.llm_client.SageMakerClient", lambda *args, **kwargs: fake_sm
+    )
 
     client = LLMClient(mode="sagemaker")
     res = client.explain(
@@ -38,7 +40,9 @@ def test_llmclient_sagemaker_parses_text_fallback(monkeypatch):
     # Return plain text with Fix: marker and a http ref
     fake_sm.explain.return_value = "Impact: X\nFix: change to safe API\nhttp://ref"
 
-    monkeypatch.setattr("agent.llm_client.SageMakerClient", lambda *args, **kwargs: fake_sm)
+    monkeypatch.setattr(
+        "agent.llm_client.SageMakerClient", lambda *args, **kwargs: fake_sm
+    )
 
     client = LLMClient(mode="sagemaker")
     res = client.explain(
@@ -51,4 +55,6 @@ def test_llmclient_sagemaker_parses_text_fallback(monkeypatch):
         context={},
     )
     assert "Fix" in res["fix"] or "fix" in res["fix"].lower()
-    assert any(r.startswith("http") for r in res["references"]) or res["references"] == []
+    assert (
+        any(r.startswith("http") for r in res["references"]) or res["references"] == []
+    )

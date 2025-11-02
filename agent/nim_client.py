@@ -40,29 +40,35 @@ class NIMClient:
         self.base_url = os.environ.get("NIM_BASE_URL")
         # model names (defaults)
         # default inference model updated to the requested llama-3.1-nemotron-nano-8b-v1
-        self.inference_model = os.environ.get("NIM_INFERENCE_MODEL", "llama-3.1-nemotron-nano-8b-v1")
-        self.embedding_model = os.environ.get("NIM_EMBEDDING_MODEL", "nv-embedcode-7b-v1")
+        self.inference_model = os.environ.get(
+            "NIM_INFERENCE_MODEL", "llama-3.1-nemotron-nano-8b-v1"
+        )
+        self.embedding_model = os.environ.get(
+            "NIM_EMBEDDING_MODEL", "nv-embedcode-7b-v1"
+        )
 
         # If explicit embedding_url/inference_url not provided but base_url available, construct sensible defaults
         if self.base_url:
-            base = self.base_url.rstrip('/')
+            base = self.base_url.rstrip("/")
             # Official NVIDIA Cloud/API uses api.nvidia.com/v1
             if "api.nvidia.com" in base:
                 # prefer OpenAI-compatible endpoints under /v1
                 v1_base = base
-                if not v1_base.endswith('/v1'):
-                    v1_base = v1_base + '/v1'
+                if not v1_base.endswith("/v1"):
+                    v1_base = v1_base + "/v1"
                 # inference: prefer chat/completions (OpenAI-compatible)
                 if not self.inference_url:
                     self.inference_url = f"{v1_base}/chat/completions"
                 # embeddings: many NVIDIA LLM endpoints do not expose a /v1/embeddings path;
                 # only use explicit NIM_EMBEDDING_URL if provided by the deployment
                 if not self.embedding_url:
-                    self.embedding_url = os.environ.get('NIM_EMBEDDING_URL')
+                    self.embedding_url = os.environ.get("NIM_EMBEDDING_URL")
             else:
                 # For self-hosted or model-specific hosts, try model-based patterns if not explicitly set
                 if not self.embedding_url and self.embedding_model:
-                    self.embedding_url = f"{base}/models/{self.embedding_model}/embeddings"
+                    self.embedding_url = (
+                        f"{base}/models/{self.embedding_model}/embeddings"
+                    )
                 if not self.inference_url and self.inference_model:
                     # some deployments expose /models/<model>/infer or /infer
                     self.inference_url = f"{base}/models/{self.inference_model}/infer"
@@ -96,7 +102,7 @@ class NIMClient:
         # If the inference_url looks like the integrate v1 chat endpoint, send a chat/completions payload
         try:
             if self.inference_url and "chat/completions" in self.inference_url:
-                messages = kwargs.pop('messages', None)
+                messages = kwargs.pop("messages", None)
                 if messages is None:
                     messages = [{"role": "user", "content": prompt}]
                 payload = {
@@ -123,7 +129,11 @@ class NIMClient:
                     first = data["choices"][0]
                     # choice may be {'message': {'content': '...'}} or {'text': '...'}
                     if isinstance(first, dict):
-                        if "message" in first and isinstance(first["message"], dict) and "content" in first["message"]:
+                        if (
+                            "message" in first
+                            and isinstance(first["message"], dict)
+                            and "content" in first["message"]
+                        ):
                             return first["message"]["content"]
                         if "text" in first:
                             return first["text"]
@@ -152,7 +162,11 @@ class NIMClient:
                     return data["text"]
                 if "output" in data:
                     return data["output"]
-                if "choices" in data and isinstance(data["choices"], list) and data["choices"]:
+                if (
+                    "choices" in data
+                    and isinstance(data["choices"], list)
+                    and data["choices"]
+                ):
                     first = data["choices"][0]
                     if isinstance(first, dict) and "text" in first:
                         return first["text"]
@@ -167,10 +181,10 @@ class NIMClient:
         if not requests or not self.base_url:
             return None
         try:
-            base = self.base_url.rstrip('/')
+            base = self.base_url.rstrip("/")
             v1 = base
-            if not v1.endswith('/v1'):
-                v1 = v1 + '/v1'
+            if not v1.endswith("/v1"):
+                v1 = v1 + "/v1"
             url = f"{v1}/health/ready"
             r = requests.get(url, headers=self._headers(self.api_key), timeout=5)
             r.raise_for_status()
@@ -185,10 +199,10 @@ class NIMClient:
         if not requests or not self.base_url:
             return None
         try:
-            base = self.base_url.rstrip('/')
+            base = self.base_url.rstrip("/")
             v1 = base
-            if not v1.endswith('/v1'):
-                v1 = v1 + '/v1'
+            if not v1.endswith("/v1"):
+                v1 = v1 + "/v1"
             url = f"{v1}/models"
             r = requests.get(url, headers=self._headers(self.api_key), timeout=5)
             r.raise_for_status()
@@ -269,7 +283,10 @@ class NIMClient:
                 return parsed
         except Exception:
             # don't bail out yet — we'll try legacy shape next
-            logger.debug("Integrate-style embedding request failed; will try legacy payload", exc_info=True)
+            logger.debug(
+                "Integrate-style embedding request failed; will try legacy payload",
+                exc_info=True,
+            )
 
         # Fallback: try legacy payload shape commonly used by other deployments
         try:
@@ -286,5 +303,7 @@ class NIMClient:
                 return parsed
             raise RuntimeError("Unexpected embedding response format")
         except Exception:
-            logger.exception("Failed to get embeddings from NIM (both integrate and legacy payloads attempted)")
+            logger.exception(
+                "Failed to get embeddings from NIM (both integrate and legacy payloads attempted)"
+            )
             raise

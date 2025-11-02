@@ -22,18 +22,18 @@ def _is_valid_url(u: str) -> bool:
     if not isinstance(u, str):
         return False
     u = u.strip()
-    if not re.match(r'^https?://', u, re.IGNORECASE):
+    if not re.match(r"^https?://", u, re.IGNORECASE):
         return False
-    m = re.match(r'^https?://([^/\s]+)', u)
-    return bool(m and '.' in m.group(1))
+    m = re.match(r"^https?://([^/\s]+)", u)
+    return bool(m and "." in m.group(1))
 
 
 def _sanitize_text(s: str) -> str:
     if not isinstance(s, str):
         return s
     # remove non-printable characters
-    s = ''.join(ch for ch in s if ch.isprintable())
-    s = re.sub(r'[ \t]+', ' ', s)
+    s = "".join(ch for ch in s if ch.isprintable())
+    s = re.sub(r"[ \t]+", " ", s)
     return s.strip()
 
 
@@ -44,12 +44,12 @@ def _normalize_reference(r):
             return {"url": rs}
         return None
     if isinstance(r, dict):
-        url = r.get('url') or r.get('link') or r.get('href')
+        url = r.get("url") or r.get("link") or r.get("href")
         if url and _is_valid_url(url):
             out = {"url": _sanitize_text(url)}
-            desc = r.get('description') or r.get('name')
+            desc = r.get("description") or r.get("name")
             if desc:
-                out['description'] = _sanitize_text(desc)
+                out["description"] = _sanitize_text(desc)
             return out
         return None
     return None
@@ -60,11 +60,11 @@ def _sanitize_results(results: Dict[str, List[Dict[str, Any]]]) -> Dict[str, int
     normalized = 0
     for fp, issues in results.items():
         for issue in issues:
-            for key in ('explanation', 'fix', 'message', 'snippet'):
+            for key in ("explanation", "fix", "message", "snippet"):
                 if key in issue:
                     issue[key] = _sanitize_text(issue[key])
 
-            refs = issue.get('references') or []
+            refs = issue.get("references") or []
             new_refs = []
             for r in refs:
                 nr = _normalize_reference(r)
@@ -73,7 +73,7 @@ def _sanitize_results(results: Dict[str, List[Dict[str, Any]]]) -> Dict[str, int
                     normalized += 1
                 else:
                     removed += 1
-            issue['references'] = new_refs
+            issue["references"] = new_refs
     return {"removed_refs": removed, "normalized_refs": normalized}
 
 
@@ -146,14 +146,18 @@ class Reasoner:
         # prefer LLN-provided references but merge KB refs
         refs = list(llm_out.get("references", []))
         if isinstance(kb_entry, dict):
-            for r in kb_entry.get("references", []) if kb_entry.get("references") else []:
+            for r in (
+                kb_entry.get("references", []) if kb_entry.get("references") else []
+            ):
                 if r not in refs:
                     refs.append(r)
         enriched["references"] = refs
 
         return enriched
 
-    def enrich(self, findings: Union[Dict[str, List[Dict[str, Any]]], List[Dict[str, Any]]]) -> Dict[str, Any]:
+    def enrich(
+        self, findings: Union[Dict[str, List[Dict[str, Any]]], List[Dict[str, Any]]]
+    ) -> Dict[str, Any]:
         """Accept Stage 2 output in two forms:
         - dict mapping filepath -> list of issue dicts
         - list of issue dicts (flattened)
