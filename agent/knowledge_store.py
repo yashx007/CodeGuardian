@@ -166,9 +166,9 @@ class KnowledgeStore:
             try:
                 q_emb = self._compute_embeddings([query_text])[0]
                 qv = np.array(q_emb).astype("float32").reshape(1, -1)
-                D, I = self.index.search(qv, top_k)
+                D, indices = self.index.search(qv, top_k)
                 results = []
-                for dist, idx in zip(D[0], I[0]):
+                for dist, idx in zip(D[0], indices[0]):
                     if idx < 0 or idx >= len(self.ids):
                         continue
                     results.append((self.ids[idx], float(dist), self.texts[idx]))
