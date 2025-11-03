@@ -28,13 +28,19 @@ class _FakeClient:
 
 def test_explain_parsing_batch(monkeypatch):
     # prepare fake responses for LLM and embedding endpoints
-    llm_text = json.dumps({"explanation": "ok", "fix": "do X", "references": ["http://a"]}).encode("utf-8")
-    emb_data = json.dumps({"data": [{"embedding": [0.1, 0.2]}, {"embedding": [0.2, 0.3]}]}).encode("utf-8")
+    llm_text = json.dumps(
+        {"explanation": "ok", "fix": "do X", "references": ["http://a"]}
+    ).encode("utf-8")
+    emb_data = json.dumps(
+        {"data": [{"embedding": [0.1, 0.2]}, {"embedding": [0.2, 0.3]}]}
+    ).encode("utf-8")
 
     def fake_client_factory(service, region_name=None):
         return _FakeClient({"llm-endpoint": llm_text, "emb-endpoint": emb_data})
 
-    monkeypatch.setattr(aws_mod, "boto3", type("m", (), {"client": fake_client_factory}))
+    monkeypatch.setattr(
+        aws_mod, "boto3", type("m", (), {"client": fake_client_factory})
+    )
 
     # set env vars expected by SageMakerClient
     monkeypatch.setenv("SAGEMAKER_LLM_ENDPOINT", "llm-endpoint")
@@ -62,7 +68,9 @@ def test_embed_per_text_fallback(monkeypatch):
                 try:
                     parsed = json.loads(Body)
                     # if parsed looks like a list of texts or dict with list, error
-                    if isinstance(parsed, dict) and any(isinstance(v, list) for v in parsed.values()):
+                    if isinstance(parsed, dict) and any(
+                        isinstance(v, list) for v in parsed.values()
+                    ):
                         raise RuntimeError("batch failure")
                 except Exception:
                     pass
@@ -72,7 +80,9 @@ def test_embed_per_text_fallback(monkeypatch):
 
         return C()
 
-    monkeypatch.setattr(aws_mod, "boto3", type("m", (), {"client": fake_client_factory}))
+    monkeypatch.setattr(
+        aws_mod, "boto3", type("m", (), {"client": fake_client_factory})
+    )
     monkeypatch.setenv("SAGEMAKER_EMBEDDING_ENDPOINT", "emb-endpoint")
 
     client = aws_mod.SageMakerClient(region="us-west-2")

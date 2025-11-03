@@ -1,13 +1,10 @@
-from typing import List, Optional
-from dotenv import load_dotenv
-
-# Load local .env for development (safe: .env is gitignored)
-load_dotenv()
 import io
 import zipfile
 import tarfile
 import asyncio
 import urllib.request
+from typing import List, Optional
+from dotenv import load_dotenv
 
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -20,6 +17,9 @@ from agent import persistence
 from fastapi import Depends
 from app.routes_chat import router as chat_router
 
+
+# Load local .env for development (safe: .env is gitignored)
+load_dotenv()
 
 app = FastAPI(title="CodeGuardian API")
 
@@ -157,9 +157,9 @@ def _scan_and_pack(filename: str, content: str):
 @app.post("/upload")
 async def upload(
     files: List[UploadFile] = File(None),
-    code: str = Form(None),
-    filename: str = Form(None),
-    url: str = Form(None),
+    code: Optional[str] = Form(None),
+    filename: Optional[str] = Form(None),
+    url: Optional[str] = Form(None),
 ):
     """Accept multiple upload modes: files (single/multiple/archives), pasted
     code, or a URL.
@@ -238,7 +238,13 @@ async def upload(
 
 
 @app.post("/analyze")
-async def analyze(stage2: dict = None, files: List[UploadFile] = File(None), code: str = Form(None), filename: str = Form(None), backend: str = None):
+async def analyze(
+    stage2: Optional[dict] = None,
+    files: List[UploadFile] = File(None),
+    code: Optional[str] = Form(None),
+    filename: Optional[str] = Form(None),
+    backend: Optional[str] = None,
+):
     """Analyze input using Stage 2 parser and Stage 3 reasoner.
 
     Modes:
@@ -288,14 +294,16 @@ async def analyze(stage2: dict = None, files: List[UploadFile] = File(None), cod
     if code is not None:
         fn = filename or "pasted.py"
         # write to temp file? stage2 parser accepts path -> use analyze_code by writing to a temporary path
-        # But parser.analyze_code accepts file path string and loads file - instead we can call parser.analyze_code by using a small helper
-        # Simpler: call stage2_parser.analyze_code by creating a temporary file on disk
+        # Note: parser.analyze_code accepts a file path string and loads the file.
+        # To analyze pasted code we create a temporary file and pass its path
+        # to the existing analyzer rather than trying to call internal helpers.
         import tempfile
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=True) as tf:
             tf.write(code)
             tf.flush()
             issues = stage2_parser.analyze_code(tf.name)
+
         enriched = req_reasoner.enrich({fn: issues})
         try:
             persistence.save_report(fn, enriched.get("summary", {}), enriched)
@@ -313,7 +321,9 @@ def summary(path: Optional[str] = None):
     If path is omitted, returns an empty summary.
     """
     if not path:
-        return JSONResponse({"summary": {"counts": {}, "risk": "Unknown", "total_issues": 0}})
+        return JSONResponse(
+            {"summary": {"counts": {}, "risk": "Unknown", "total_issues": 0}}
+        )
 
     findings = stage2_parser.analyze_path(path, recursive=True)
     enriched = reasoner.enrich(findings)

@@ -29,7 +29,9 @@ def test_reasoning_end2end_with_mocks(tmp_path, monkeypatch):
 
     # Because FakeNIMClient returns a deterministic mocked explanation, check presence
     for it in enriched:
-        assert "explanation" in it and it["explanation"].startswith("This is a mocked explanation")
+        assert "explanation" in it and it["explanation"].startswith(
+            "This is a mocked explanation"
+        )
         assert "fix" in it
         assert "severity" in it
 

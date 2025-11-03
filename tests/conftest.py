@@ -1,5 +1,7 @@
 import json
 import hashlib
+import os
+import sys
 from typing import List
 
 
@@ -33,7 +35,7 @@ class FakeNIMClient:
         payload = {
             "explanation": "This is a mocked explanation for testing.",
             "fix": "Apply recommended best practices.",
-            "references": ["http://example.com/mock"]
+            "references": ["http://example.com/mock"],
         }
         return json.dumps(payload)
 
@@ -45,19 +47,19 @@ def pytest_configure(config):
     # modules that instantiate NIM for online flows (llm_client, knowledge_store).
     try:
         import agent.llm_client as llm_mod
+
         llm_mod.NIMClient = FakeNIMClient
     except Exception:
         pass
     try:
         import agent.knowledge_store as ks_mod
+
         ks_mod.NIMClient = FakeNIMClient
     except Exception:
         pass
-import os
-import sys
 
-# Ensure project root is on sys.path so tests can import
-# `app` and `agent` packages.
+
+# Ensure project root is on sys.path so tests can import `app` and `agent` packages.
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)

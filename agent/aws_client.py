@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 
 try:
     import boto3
@@ -35,10 +35,14 @@ class SageMakerClient:
         self.llm_endpoint = os.environ.get("SAGEMAKER_LLM_ENDPOINT")
         self.embedding_endpoint = os.environ.get("SAGEMAKER_EMBEDDING_ENDPOINT")
 
-    def _invoke(self, endpoint_name: str, payload: Any, content_type: str = "application/json") -> str:
+    def _invoke(
+        self, endpoint_name: str, payload: Any, content_type: str = "application/json"
+    ) -> str:
         try:
             body = payload if isinstance(payload, (str, bytes)) else json.dumps(payload)
-            resp = self.client.invoke_endpoint(EndpointName=endpoint_name, ContentType=content_type, Body=body)
+            resp = self.client.invoke_endpoint(
+                EndpointName=endpoint_name, ContentType=content_type, Body=body
+            )
             # Body is a StreamingBody
             b = resp["Body"].read()
             text = b.decode("utf-8")
@@ -97,7 +101,11 @@ class SageMakerClient:
                             return embs
                     if isinstance(parsed, dict) and parsed.get("embeddings"):
                         return parsed.get("embeddings")
-                    if isinstance(parsed, list) and parsed and isinstance(parsed[0], list):
+                    if (
+                        isinstance(parsed, list)
+                        and parsed
+                        and isinstance(parsed[0], list)
+                    ):
                         return parsed
                 except Exception:
                     # not JSON or unexpected shape — continue
@@ -115,7 +123,11 @@ class SageMakerClient:
                     if isinstance(parsed, dict) and parsed.get("embedding"):
                         vectors.append(parsed.get("embedding"))
                         continue
-                    if isinstance(parsed, list) and parsed and isinstance(parsed[0], (int, float)):
+                    if (
+                        isinstance(parsed, list)
+                        and parsed
+                        and isinstance(parsed[0], (int, float))
+                    ):
                         vectors.append(parsed)
                         continue
                 except Exception:

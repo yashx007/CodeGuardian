@@ -71,3 +71,6 @@ npm-debug.log
 *.sqlite3
 data/*.db
 data/*.sqlite3
+
+# Ignore generated demo output files
+Output/
