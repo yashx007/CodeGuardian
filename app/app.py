@@ -6,8 +6,11 @@ import urllib.request
 from typing import List, Optional
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Body
 from fastapi.responses import HTMLResponse, JSONResponse
+import os
+import logging
+from logging.handlers import RotatingFileHandler
 from pydantic import BaseModel
 
 from agent.engine import engine
@@ -25,6 +28,18 @@ app = FastAPI(title="CodeGuardian API")
 
 # include chat routes
 app.include_router(chat_router)
+
+# Ensure logs directory exists and configure logging
+LOG_DIR = os.environ.get("CG_LOG_DIR", "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+log_path = os.path.join(LOG_DIR, "app.log")
+handler = RotatingFileHandler(log_path, maxBytes=5 * 1024 * 1024, backupCount=3)
+formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
+handler.setFormatter(formatter)
+logger = logging.getLogger("codeguardian")
+if not logger.handlers:
+    logger.addHandler(handler)
+logger.setLevel(os.environ.get("CG_LOG_LEVEL", "INFO"))
 
 
 class ScanResult(BaseModel):
@@ -164,6 +179,7 @@ async def upload(
     """Accept multiple upload modes: files (single/multiple/archives), pasted
     code, or a URL.
     """
+    logger.info("/upload called: files=%s code_present=%s url=%s", bool(files), code is not None, bool(url))
     results = []
 
     # Process uploaded files if any
@@ -214,12 +230,14 @@ async def upload(
             except Exception as e:
                 results.append({"filename": name, "error": str(e)})
 
-        return JSONResponse({"results": results})
+    logger.info("/upload returning %d result(s) for uploaded files", len(results))
+    return JSONResponse({"results": results})
 
     # Process pasted code
     if code is not None:
         fn = filename or "pasted.py"
         results.append(_scan_and_pack(fn, code))
+        logger.info("/upload returning %d result(s) for pasted code (%s)", len(results), fn)
         return JSONResponse({"results": results})
 
     # Process URL
@@ -231,8 +249,9 @@ async def upload(
             text = content.decode("utf-8", errors="ignore")
         except Exception:
             text = ""
-        results.append(_scan_and_pack(url, text))
-        return JSONResponse({"results": results})
+    results.append(_scan_and_pack(url, text))
+    logger.info("/upload returning %d result(s) for fetched URL %s", len(results), url)
+    return JSONResponse({"results": results})
 
     return JSONResponse({"error": "No input provided"}, status_code=400)
 
@@ -252,6 +271,8 @@ async def analyze(
     - Upload files (same as /upload) and they will be analyzed with Stage 2
     - Paste code via 'code' and 'filename'
     """
+    logger.info("/analyze called: backend=%s stage2_provided=%s files=%s code_present=%s", backend, bool(stage2), bool(files), code is not None)
+
     # If a backend is specified for this request, create a request-scoped Reasoner
     req_reasoner = reasoner
     if backend:
@@ -269,6 +290,7 @@ async def analyze(
             persistence.save_report("stage2_input", enriched.get("summary", {}), enriched)
         except Exception:
             pass
+        logger.info("/analyze returned enriched stage2 with total_issues=%s", enriched.get("summary", {}).get("total_issues"))
         return JSONResponse(enriched)
 
     results = []
@@ -288,7 +310,8 @@ async def analyze(
             except Exception:
                 pass
             results.append(enriched)
-        return JSONResponse({"results": results})
+    logger.info("/analyze returning %d enriched result(s) for uploaded files", len(results))
+    return JSONResponse({"results": results})
 
     # pasted code
     if code is not None:
@@ -309,9 +332,42 @@ async def analyze(
             persistence.save_report(fn, enriched.get("summary", {}), enriched)
         except Exception:
             pass
+        logger.info("/analyze returning enriched result for pasted file %s (total_issues=%s)", fn, enriched.get("summary", {}).get("total_issues"))
         return JSONResponse(enriched)
 
     return JSONResponse({"error": "No input provided to analyze"}, status_code=400)
+
+
+@app.post("/analyze_json")
+async def analyze_json(payload: dict = Body(...)):
+    """Accept a pure JSON payload for programmatic use.
+
+    Expected shape: {"stage2": {file: [issues]}, "backend": "sagemaker"}
+    This is a convenience endpoint for clients that prefer application/json.
+    """
+    stage2 = payload.get("stage2")
+    backend = payload.get("backend")
+
+    if not stage2:
+        logger.warning("/analyze_json called with no stage2 payload")
+        return JSONResponse({"error": "No stage2 payload provided"}, status_code=400)
+
+    # If a backend is specified for this request, create a request-scoped Reasoner
+    req_reasoner = reasoner
+    if backend:
+        try:
+            req_reasoner = Reasoner(llm_mode=backend)
+        except Exception:
+            req_reasoner = reasoner
+
+    enriched = req_reasoner.enrich(stage2)
+    # persist the report (best-effort)
+    try:
+        persistence.save_report("stage2_input", enriched.get("summary", {}), enriched)
+    except Exception:
+        pass
+    logger.info("/analyze_json returned enriched stage2 with total_issues=%s (backend=%s)", enriched.get("summary", {}).get("total_issues"), backend)
+    return JSONResponse(enriched)
 
 
 @app.get("/summary")
@@ -328,6 +384,7 @@ def summary(path: Optional[str] = None):
     findings = stage2_parser.analyze_path(path, recursive=True)
     enriched = reasoner.enrich(findings)
     # keep only summary
+    logger.info("/summary ran on path=%s total_issues=%s", path, enriched.get("summary", {}).get("total_issues"))
     return JSONResponse({"summary": enriched.get("summary")})
 
 
