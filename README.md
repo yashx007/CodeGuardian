@@ -272,7 +272,7 @@ Stored in `agent/knowledge_base.py` and indexed via Embedding NIM.
 | Infra            | EKS or SageMaker endpoint deployment |
 
 
-## 🤝 Contribution Guide
+## Contribution Guide
 
 Want to improve CodeGuardian?
 
@@ -282,16 +282,7 @@ Want to improve CodeGuardian?
 4. Submit a pull request 🚀
 
 
-## 🏆 Hackathon Submission Info
-
-* **Challenge:** *Agentic AI Unleashed: AWS & NVIDIA Hackathon*
-* **Category:** *Enterprise DevOps + Machine Learning/AI*
-* **Deadline:** November 4, 2025
-* **Team:** [@yourname] + [@teammate]
-
-
-
-## 💡 Future Roadmap
+## Future Roadmap
 
 * [ ] Add browser-based chat UI
 * [ ] Multi-language (Java, Go) analyzers
@@ -300,7 +291,7 @@ Want to improve CodeGuardian?
 * [ ] Integration with AWS CodePipeline
 
 
-## 🧠 Acknowledgements
+## Acknowledgements
 
 Special thanks to:
 
