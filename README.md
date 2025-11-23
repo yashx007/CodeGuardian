@@ -4,13 +4,13 @@
 > **An intelligent, agentic AI system that analyzes, explains, and auto-fixes code vulnerabilities — powered by NVIDIA NIM and AWS SageMaker.**
 
 
-## 🚀 Overview
+## Overview
 
 **CodeGuardian** is an **AI-powered DevSecOps agent** that automatically scans source code, detects security risks, explains vulnerabilities in natural language, and suggests secure fixes.
 
 It combines **static analysis** (like a linter) with **LLM-based reasoning** (like an expert security reviewer) — running as an **agentic system** powered by:
 
-- 🧠 **NVIDIA NIM Inference Microservices**  
+- **NVIDIA NIM Inference Microservices**  
   - `llama-3-1-nemotron-nano-8B-v1` → reasoning and fix generation  
   - `retrieval-embedding-nim` → knowledge retrieval  
 - ☁️ **AWS SageMaker Endpoints** for scalable inference  
@@ -18,7 +18,7 @@ It combines **static analysis** (like a linter) with **LLM-based reasoning** (li
 
 
 
-## 🎯 Goal
+## Goal
 
 To make **secure software development autonomous**, by allowing developers to:
 
@@ -29,7 +29,7 @@ To make **secure software development autonomous**, by allowing developers to:
 
 
 
-## 🧩 Key Features
+## Key Features
 
 | Feature | Description |
 |----------|-------------|
@@ -42,7 +42,7 @@ To make **secure software development autonomous**, by allowing developers to:
 
 
 
-## 🧠 Architecture
+## Architecture
 
 ```
 
@@ -76,7 +76,7 @@ To make **secure software development autonomous**, by allowing developers to:
 
 
 
-## 🧱 Folder Structure
+## Folder Structure
 
 ```
 
@@ -116,7 +116,7 @@ CodeGuardian/
 ````
 
 
-## ⚙️ Setup Instructions
+## Setup Instructions
 
 ### 1️⃣ Clone the Repository
 ```bash
@@ -150,7 +150,7 @@ EMBED_ENDPOINT_NAME=retrieval-embed-endpoint
 ```
 
 
-## ☁️ AWS & NIM Integration Setup
+## AWS & NIM Integration Setup
 
 ### Step 1 — Deploy NIM Models on SageMaker
 
@@ -187,7 +187,7 @@ You’ll get JSON output containing:
 * Risk summary
 
 
-## 🧠 Example Output
+## Example Output
 
 ```json
 {
@@ -212,7 +212,7 @@ You’ll get JSON output containing:
 ```
 
 
-## 🧩 Example API Endpoints
+## Example API Endpoints
 
 | Endpoint   | Method | Description                              |
 | ---------- | ------ | ---------------------------------------- |
@@ -221,7 +221,7 @@ You’ll get JSON output containing:
 | `/chat`    | POST   | Ask questions about issues interactively |
 
 
-## 🧪 Running Tests
+## Running Tests
 
 ```bash
 pytest -v
@@ -234,7 +234,7 @@ CI also runs automatically via GitHub Actions:
 * Optional embedding index build
 
 
-## 🐳 Docker Setup
+## Docker Setup
 
 Build and run locally:
 
@@ -246,7 +246,7 @@ docker run -p 8080:8080 codeguardian
 Access: `http://localhost:8080/docs`
 
 
-## 🧠 Knowledge Base (KB)
+## Knowledge Base (KB)
 
 Includes 50+ security patterns and best practices:
 
@@ -258,7 +258,7 @@ Includes 50+ security patterns and best practices:
 Stored in `agent/knowledge_base.py` and indexed via Embedding NIM.
 
 
-## 🧩 Technologies Used
+## Technologies Used
 
 | Area             | Stack                                |
 | ---------------- | ------------------------------------ |
