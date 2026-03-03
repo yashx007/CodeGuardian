@@ -1,0 +1,257 @@
+{
+  "results": {
+    "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py": [
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Hardcoded Secret",
+        "line": 7,
+        "snippet": "password = \"hunter2\"",
+        "message": "Avoid hardcoding passwords in source code; use environment variables or secret stores.",
+        "severity": "High",
+        "explanation": "The code snippet hardcodes the password 'hunter2' directly in the application's source code. This practice is dangerous because it exposes the secret to anyone who has access to the source code. If the code is shared, discussed, or submitted to a version control system, the password will become publicly known. This could lead to unauthorized access to the application or service that uses the password.",
+        "fix": "Replace the hardcoded password with an environment variable that holds the password value. This ensures that the password is not exposed in the source code and can be easily updated or retrieved from the environment.",
+        "llm_used": "online",
+        "references": [
+          {
+            "name": "Environment Variables in Python",
+            "url": "https://docs.python.org/3/library/os.environ.html"
+          },
+          {
+            "name": "Python Environment Variables Management",
+            "url": "https://docs.python.org/3/library/os.environ.html# Environment-Variables"
+          },
+          {
+            "name": "Python Secrets Manager",
+            "url": "https://security-center.github.io/secret managerial页面存档备份標帖https://github.com/python-one/accessible-secrets"
+          },
+          "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html",
+          "https://owasp.org/www-project-top-ten/"
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Hardcoded Secret",
+        "line": 8,
+        "snippet": "API_KEY = \"ABCD1234SECRETKEYSHOULDNOTBEHERE\"",
+        "message": "Avoid hardcoding API keys or credentials in source code; use environment variables or secret managers.",
+        "severity": "High",
+        "explanation": "Hardcoding API keys directly into the source code is a security issue. By storing secrets like API keys in the source code, there is an increased risk of exposure through backup files, accidental submissions to version control, or if the code is ever shared or released prematurely. This can lead to unauthorized access or misuse of the API key, causing financial losses or other security breaches.",
+        "fix": "Use environment variables or a secret manager to store API keys in the application. Here's an example of how to configure an environment variable in your project:",
+        "llm_used": "online",
+        "references": [
+          {
+            "url": "https://example.com/configuring-environment-variables-in-python"
+          },
+          {
+            "url": "https:// OWASP.org/Top-Threats maka-_OAuth-Token-Vulnerability-2021-12"
+          },
+          "https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html",
+          "https://owasp.org/www-project-top-ten/"
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Possible Hardcoded Token",
+        "line": 8,
+        "snippet": "\"ABCD1234SECRETKEYSHOULDNOTBEHERE\"",
+        "message": "Found a long string constant which might be a token or secret; verify and remove from code if sensitive.",
+        "severity": "High",
+        "explanation": "The code contains a hardcoded and potentially sensitive token or secret key stored in plain text as a string constant. This issue is known as a Hardcoded Token vulnerability. It makes the application more insecure because if the token or secret is compromised, an attacker could use it to gain unauthorized access to sensitive information or perform malicious actions.",
+        "fix": "Remove the hardcoded token or secret from the code and consider using a secure method to generate, store, and access the token or secret. Here's an example fix assuming the string is a simple hardcoded key:\n\n---\n\n// Example fix (replace with the actual secure method)\nconst SECRET_KEY = processPasswordSecret(); // Assuming a proper secure method is implemented\n---\n\nFor the given example in Line 8, the fix would be to remove the entire line with the hardcoded token or secret:\n\n// Remove the hardcoded token or secret\n// const ABCD1234SECRETKEYSHOULDNOTBEHERE;",
+        "llm_used": "online",
+        "references": [
+          {
+            "name": "OWASP Top Ten Lists",
+            "url": "https://www.opensecuritygroup.com/owasp-top-ten-lists-and-anagrams"
+          },
+          {
+            "name": "Hardcode and XKCD 120",
+            "url": "https://whatnodoes.net/xkcd-120/"
+          }
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Insecure Function Usage",
+        "line": 12,
+        "snippet": "res = eval(user_input)",
+        "message": "Use of eval() can lead to code injection or unexpected behavior. Avoid using it with untrusted input.",
+        "severity": "Medium",
+        "explanation": "The given code uses `eval(user_input)` which can lead to code injection attacks if `user_input` is untrusted. An attacker can execute arbitrary code, leading to potential security vulnerabilities, data breaches, or system compromise.",
+        "fix": "Replace the insecure `eval()` usage with a safer alternative. Here's an example of how to use a restricted evaluator (Python's `ast.literal_eval()`) to safely evaluate simple Python literals.",
+        "llm_used": "online",
+        "references": [
+          {
+            "url": "https://python.org/doc/howashtools/safety/",
+            "description": "Learn about safe ways to evaluate Python literals using `ast.literal_eval()`"
+          },
+          {
+            "url": "https://owASP.org/Top10/Dos_ WhatsAppッシュ underestimate the importance of input validation",
+            "description": "Understand the risks of input validation and the importance of using secure methods like `ast.literal_eval()`"
+          },
+          "https://owasp.org/www-community/"
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Suspicious Subprocess Call",
+        "line": 15,
+        "snippet": "subprocess.run(\"ls -la\", shell=True)",
+        "message": "Use of subprocess APIs can run external commands; ensure inputs are sanitized. Detected shell=True which increases risk of injection.",
+        "severity": "Medium",
+        "explanation": "{\n  \"explanation\": \"The code uses subprocess.run with shell=True, which is a susceptible way of executing arbitrary commands. This leaves the application vulnerable to command injection attacks. An attacker could potentially inject malicious code through the command's arguments, leading to unauthorized access or modification of system resources. This issue is related to a Common Vulnerability Scoring System (CVSS) base score of 8, as it directly allows for remote code execution.\",\n  \"fix\": \"Avoid using shell=True and instead pass the command and its arguments as separate arguments to subprocess.run. Ensure that inputs are properly validated to prevent injection attacks. Here's the corrected line:\",\n  \"fix\": \"subprocess.run('ls', '-la')\",\n  \"references\": [\n    {\n      \"name\": \"Python Subprocess Safety\",\n      \"url\": \"https://docs.python.org/3/library/subprocess.html#security-vulnerabilities\"\n    },\n    {\n      \"name\": \"Command Injection Prevention\",\n      \"url\": \"https:// OWASP.org/Vulnerabilities-list/Command-injection\"\n    },\n    {\n      \"name\": \"CVSS Database\",\n      \"url\": \"https://cune hostebin.org/cvss/\"  // To search for the CVSS entry for this vulnerability patterns\n    }\n  ]\n}",
+        "fix": "",
+        "llm_used": "online",
+        "references": [
+          "https://cheatsheetseries.owasp.org/"
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Insecure Function Usage",
+        "line": 21,
+        "snippet": "obj = pickle.loads(b\"not-a-pickle\")",
+        "message": "Unpickling data from untrusted sources can lead to remote code execution.",
+        "severity": "Medium",
+        "explanation": "The code is attempting to use `pickle.loads()` with a suspicious input in the format of a string preceded by the literal 'not-a-pickle'. This is likely intended to obfuscate or mislead, but the actual issue is the lack of trust in the source of the input. Unpickling data from untrusted sources, such as user input or network data, can execute arbitrary code, leading to security vulnerabilities like Remote Code Execution (RCE) and information disclosure.",
+        "fix": "Validating and sanitizing the input to ensure it's a trusted source before unpickling is crucial. However, using `pickle` directly remains risky. Instead, consider using safer alternatives like Vault's Secret Service or AWS Secret Store for storing and managing sensitive data and tokens.",
+        "llm_used": "online",
+        "references": [
+          {
+            "url": "https:// pickle.codeЂ « If you're not sure, you might want to read some more materials about the Python pickle module. In particular, this one is about the typical public concern about the functionality of the pickle module. Specifically the concern about its security and the recommended improvements, you can find it here. link (changes to fit example purposes)"
+          },
+          {
+            "url": "https:// security Harrison.orgvasive "
+          },
+          {
+            "url": "https:// netikax.com "
+          },
+          "https://owasp.org/www-community/"
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Dangerous Import",
+        "line": 2,
+        "snippet": "import subprocess",
+        "message": "Importing subprocess can enable executing shell commands; review usage.",
+        "severity": "Medium",
+        "explanation": "The code imports the `subprocess` module, which allows execution of system commands directly from Python. Without proper restrictions or validation, this could lead to unintended shell command executions, potentially causing unauthorized access, data leakage, or other security vulnerabilities if the input is compromised.",
+        "fix": {
+          "description": "Use a safer way to execute commands without shell injection. Here's a suggestion using `os.system` instead, which does not take input but also has its own risks. Alternatively, use the Python `run` function in `pyfiglet` for a more secure approach to executing commands.",
+          "code": "import os\ncommand = 'ls'\nos.system(command)"
+        },
+        "llm_used": "online",
+        "references": [
+          {
+            "title": "Be careful with shell command execution in Python",
+            "url": "https://security.stackexchange.com/questions/18713/be-careful-with-shell-command-execution-in-python"
+          },
+          {
+            "title": "Use os.system instead of subprocess when command execution is needed",
+            "url": "https://stackoverflow.com/questions/13117660/use-os-system-instead-of-subprocess-when-command-execution-is-needed"
+          },
+          {
+            "title": "Python run function based on figlet",
+            "url": "https://pypi.org/project/pyfiglet/"
+          }
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Deprecated Hash",
+        "line": 26,
+        "snippet": "h = hashlib.md5(b\"data\").hexdigest()",
+        "message": "Use of md5 is deprecated for security-sensitive hashing. Use sha256 or stronger algorithms.",
+        "severity": "Medium",
+        "explanation": "The code uses the MD5 hash algorithm, which is considered weak and has been known to have collisions, making it unsuitable for security-critical purposes such as password hashing. Using MD5 can lead to vulnerabilities where different inputs may produce the same hash, granting unauthorized access.",
+        "fix": "Replace `md5` with a more secure algorithm like `sha256`. Here's the corrected line: `h = hashlib.sha256(b'data').hexdigest()`",
+        "llm_used": "online",
+        "references": [
+          {
+            "url": "https://owASP.org/security-top-10/2006/pet10b-java.html"
+          },
+          {
+            "url": "https://passwordhashing.bestpractices.io/"
+          },
+          "https://www.ipa.go.jp/security/english/",
+          "https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html"
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Possible SQL Injection",
+        "line": 36,
+        "snippet": "cursor.execute(query)",
+        "message": "Detected SQL execution using a variable that appears to be built via string formatting/concatenation. Use parameterized queries.",
+        "severity": "High",
+        "explanation": "The code at line 36 is vulnerable to SQL Injection because the 'query' variable is used directly in a cursor.execute() call without validation or sanitization. An attacker could inject malicious SQL code by manipulating the 'query' variable, leading to unauthorized data modification, data leakage, or other unintended consequences.",
+        "fix": "Replace the line with a parameterized query to prevent SQL Injection. Use placeholders for query parameters and pass them as a separate parameter to cursor.execute().",
+        "llm_used": "online",
+        "references": [
+          {
+            "name": "SQL Injection",
+            "description": "SQL Injection is a type of computer attack that involves the injection of unintended SQL or SQL-like code into a computer database management system.",
+            "url": "https://owASP.org/www.ReturningReturns/WSenheimans_12.html"
+          },
+          {
+            "name": "SQL Injection Mitigation",
+            "description": "SQL Injection can be prevented with proper input validation, canonicalization, and sanitization. Parameterized queries can further protect against SQL Injection.",
+            "url": "https://information-security.stackexchange.com/questions/5068/how-to-prevent-sql-injection-attacks"
+          },
+          {
+            "name": "SQL Injection in Python",
+            "description": "Python's sqlite3 and MySQLdb modules provide support for parameterized queries, making it easier to prevent SQL Injection.",
+            "url": "https://docs.python.org/3/library/sqlite3.html#using-parameterized-queries"
+          },
+          "https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html",
+          "https://owasp.org/www-community/attacks/SQL_Injection"
+        ]
+      },
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "type": "Insecure Regex",
+        "line": 29,
+        "snippet": "pat = re.compile('.*')",
+        "message": "Found an overly-broad regex pattern which may lead to excessive backtracking or unintended matches.",
+        "severity": "Medium",
+        "explanation": "The given regex pattern '.*' is overly-broad, potentially leading to excessive backtracking and unintended matches. This can cause performance issues or security vulnerabilities if the pattern is used to match input in a dynamic code execution context.",
+        "fix": "Replace '.*' with a more precise regex pattern. For example, if matching text, use '^[^\\n]*$' to match all non-newline characters or '^[^\\t\\n\\r\\v\\f]*$' for shorter lines. Always anchor your regex and use limit quantifiers to restrict the number of matches.",
+        "llm_used": "online",
+        "references": [
+          {
+            "url": "https://owASP.org/textbook/JavaSecurityHardeningTips152.html",
+            "description": "JP0B: Session Manager - Uncontrolled Session and Request which can be exploited through use of classids and instances."
+          },
+          {
+            "url": "https:// लगाते.OracleCSHR.com/choose-language/regex.html",
+            "description": "Basic regular expression in various programming languages with examples in C, C++, and SQL"
+          },
+          {
+            "url": "https://iðeland.fmi.pl/regex-regions/en/current/",
+            "description": "Regular Expressions (regex) in various programming languages"
+          },
+          "https://owasp.org/www-community/"
+        ]
+      }
+    ]
+  },
+  "summary": {
+    "counts": {
+      "High": 4,
+      "Medium": 6,
+      "Low": 0
+    },
+    "risk": "High",
+    "total_issues": 10,
+    "score": 0.76,
+    "rationale": "4 high-severity issue(s), 6 medium-severity issue(s).",
+    "top_files": [
+      {
+        "file": "C:\\Users\\HP\\Desktop\\CodeGuardian\\input\\test_insecure.py",
+        "score": 38,
+        "issues": 10
+      }
+    ]
+  }
+}
