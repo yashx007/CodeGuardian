@@ -1,0 +1,19 @@
+@startuml
+node "Client Browser" as Browser
+node "Server VM / Container" as Server {
+  component "FastAPI App" as App
+  component "Stage2 Engine" as Engine
+  component "Reasoner" as Reasoner
+  component "LLMClient" as LLMClient
+  file "SQLite DB\n(data/reports.db)" as DB
+}
+cloud "NVIDIA Integrate / NIM\nor SageMaker" as Inference
+database "FAISS / KB store" as KB
+Browser --> App : HTTP(S)
+App --> Engine
+Engine --> Reasoner
+Reasoner --> LLMClient
+LLMClient --> Inference : REST calls (auth: Bearer key)
+Reasoner --> KB : retrieve context (embeddings)
+App --> DB
+@enduml

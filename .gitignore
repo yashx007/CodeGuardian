@@ -72,5 +72,13 @@ npm-debug.log
 data/*.db
 data/*.sqlite3
 
+# Large binary files
+*.mp4
+*.avi
+*.mov
+
+# Salesforce
+.sfdx/
+
 # Ignore generated demo output files
 Output/

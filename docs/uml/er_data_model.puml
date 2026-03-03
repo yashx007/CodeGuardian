@@ -1,0 +1,28 @@
+@startuml
+entity "Report" as R {
+  *id : INTEGER
+  --
+  report_type : TEXT
+  created_at : DATETIME
+  content : TEXT
+}
+entity "Finding" as F {
+  *id : INTEGER
+  --
+  report_id : INTEGER
+  file_path : TEXT
+  severity : TEXT
+  description : TEXT
+}
+entity "UserSession" as S {
+  *id : INTEGER
+  --
+  session_id : TEXT
+  user_agent : TEXT
+  created_at : DATETIME
+}
+
+R ||--o{ F : contains
+S ||--o{ R : creates
+
+@enduml

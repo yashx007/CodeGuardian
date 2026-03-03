@@ -1,0 +1,48 @@
+@startuml
+class LLMClient {
+  - mode: str
+  - online_available: bool
+  @startuml
+  class App {
+    +upload()
+    +analyze()
+  }
+  class Engine {
+    +scan_code(files)
+    +build_prompt(findings)
+  }
+  class LLMClient {
+    +explain(prompt)
+    +embed(text)
+  }
+  class NIMClient {
+    +explain(prompt)
+    +embed(text)
+  }
+  class Persistence {
+    +save_report(report)
+    +list_reports()
+  }
+
+  Engine --> LLMClient : uses
+  LLMClient <|-- NIMClient : implementation
+  Engine --> Persistence : persists -> Report
+  App --> Engine : delegates
+
+  @enduml
+class Reasoner {
+  - llm_mode
+  + enrich(stage2) : dict
+}
+class Persistence {
+  + save_report(filename, summary, payload) : int
+  + list_reports(limit) : list
+  + get_report(id) : dict
+}
+LLMClient o-- NIMClient
+LLMClient o-- SageMakerClient
+Reasoner --> LLMClient
+Engine --> Reasoner : uses
+Persistence <-- App
+App --> Engine
+@enduml

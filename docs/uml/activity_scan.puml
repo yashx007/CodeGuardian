@@ -1,0 +1,14 @@
+@startuml
+start
+:Receive upload;
+if (Archive?) then (yes)
+  :Extract files;
+else (no)
+endif
+:Static analysis (Stage-2);
+:Build prompt + context;
+:Call LLM (NIM);
+:Interpret results;
+:Persist report;
+stop
+@enduml

@@ -1,0 +1,50 @@
+flowchart TD
+    %% =====================================
+    %% Client Layer
+    %% =====================================
+    subgraph Client
+        U["User / Developer"]
+        B["Browser UI\n(HTML Uploader)"]
+    end
+
+    %% =====================================
+    %% Backend Layer
+    %% =====================================
+    subgraph Backend
+        A["FastAPI Backend\n(app.py)\n/upload • /analyze • /history"]
+        S2["Stage-2 Static Analysis Engine\n(Parses code & Detects vulnerabilities)"]
+        S3["Stage-3 Reasoner\n(Enriches findings & Builds prompts)"]
+        LLM["LLM Client\nModes: Offline • NIM"]
+    end
+
+    %% =====================================
+    %% AI Services Layer
+    %% =====================================
+    subgraph "AI Services"
+        NIM["NVIDIA NIM Inference Service\n(Optional backend)"]
+        KB["Knowledge Base\n(OWASP • CWE • Embeddings)"]
+    end
+
+    %% =====================================
+    %% Storage Layer
+    %% =====================================
+    subgraph Storage
+        DB[(SQLite\nreports.db)]
+    end
+
+    %% =====================================
+    %% Data Flow
+    %% =====================================
+    U -->|"Code Upload"| B
+    B -->|"/upload"| A
+    A -->|"Invoke Analyzer"| S2
+    S2 -->|"Detected Vulnerabilities"| S3
+    S3 -->|"Retrieve Context"| KB
+    S3 -->|"Build Prompt"| LLM
+    LLM -->|"Inference Request"| NIM
+    LLM ---->|"Offline Mode (Fallback)"| S3
+    NIM -->|"Explanations & Fixes"| S3
+    S3 -->|"Final Report"| A
+    A -->|"Store JSON Report"| DB
+    A -->|"Return JSON Report"| B
+    B -->|"Results"| U

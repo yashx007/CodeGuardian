@@ -6,6 +6,9 @@ import urllib.request
 from typing import List, Optional
 from dotenv import load_dotenv
 
+# Load .env BEFORE any agent imports so NIM_BASE_URL, NIM_API_KEY etc. are visible
+load_dotenv()
+
 from fastapi import FastAPI, UploadFile, File, Form, Body
 from fastapi.responses import HTMLResponse, JSONResponse
 import os
@@ -20,9 +23,6 @@ from agent import persistence
 from fastapi import Depends
 from app.routes_chat import router as chat_router
 
-
-# Load local .env for development (safe: .env is gitignored)
-load_dotenv()
 
 app = FastAPI(title="CodeGuardian API")
 
@@ -61,15 +61,62 @@ def uploader_ui():
       <head>
         <meta charset="utf-8" />
         <title>CodeGuardian Uploader</title>
-        <style>body{font-family:sans-serif;margin:2rem} textarea{width:100%;height:200px}</style>
+        <style>
+          * { box-sizing: border-box; }
+          body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 2rem; background: #0d1117; color: #c9d1d9; }
+          h1 { color: #58a6ff; border-bottom: 1px solid #30363d; padding-bottom: .5rem; }
+          h2 { color: #8b949e; font-size: 1rem; margin-top: 1.5rem; }
+          input[type="file"], input[type="text"], input[type="url"] {
+            background: #161b22; color: #c9d1d9; border: 1px solid #30363d;
+            border-radius: 6px; padding: 8px 12px; margin: 4px 0; font-size: .9rem;
+          }
+          input[type="url"] { width: 60%; }
+          textarea {
+            width: 100%; height: 200px; background: #161b22; color: #c9d1d9;
+            border: 1px solid #30363d; border-radius: 6px; padding: 10px; font-family: monospace; font-size: .85rem;
+          }
+          button {
+            background: #238636; color: #fff; border: none; border-radius: 6px;
+            padding: 8px 18px; font-size: .9rem; cursor: pointer; margin: 4px 0;
+          }
+          button:hover { background: #2ea043; }
+          button:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
+
+          /* Loader overlay */
+          #loader {
+            display: none; align-items: center; gap: 12px;
+            background: #1c2533; border: 1px solid #30363d; border-radius: 8px;
+            padding: 16px 24px; margin: 1rem 0; font-size: .95rem; color: #58a6ff;
+          }
+          #loader.active { display: flex; }
+          .spinner {
+            width: 22px; height: 22px; border: 3px solid #30363d;
+            border-top-color: #58a6ff; border-radius: 50%;
+            animation: spin .8s linear infinite;
+          }
+          @keyframes spin { to { transform: rotate(360deg); } }
+          #loader-text { flex: 1; }
+          #elapsed { color: #8b949e; font-size: .85rem; }
+
+          /* Results */
+          #results-section { margin-top: 1.5rem; }
+          pre#out {
+            background: #161b22; border: 1px solid #30363d; border-radius: 6px;
+            padding: 16px; overflow-x: auto; max-height: 600px; overflow-y: auto;
+            font-size: .82rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+          }
+          .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: .75rem; font-weight: 600; margin-left: 6px; }
+          .badge-online { background: #238636; color: #fff; }
+          .badge-offline { background: #da3633; color: #fff; }
+        </style>
       </head>
       <body>
-        <h1>CodeGuardian — Upload / Paste / Fetch</h1>
+        <h1>&#128737; CodeGuardian — Upload / Paste / Fetch</h1>
 
         <h2>Upload files (single or multiple)</h2>
         <form id="fileForm">
           <input type="file" id="files" name="files" multiple />
-          <button type="button" onclick="submitFiles()">Upload & Scan</button>
+          <button type="button" onclick="submitFiles()">Upload &amp; Scan</button>
         </form>
 
         <h2>Upload archive (.zip, .tar, .tgz)</h2>
@@ -82,54 +129,106 @@ def uploader_ui():
         <form id="pasteForm">
           <input type="text" id="pasteFilename" placeholder="filename (e.g. example.py)" />
           <br/>
-          <textarea id="code"></textarea>
+          <textarea id="code" placeholder="Paste your code here..."></textarea>
           <br/>
           <button type="button" onclick="submitPaste()">Submit Code</button>
         </form>
 
         <h2>Fetch from URL</h2>
         <form id="urlForm">
-          <input type="url" id="url" placeholder="https://example.com/file.py" style="width:60%" />
-          <button type="button" onclick="submitURL()">Fetch & Scan</button>
+          <input type="url" id="url" placeholder="https://example.com/file.py" />
+          <button type="button" onclick="submitURL()">Fetch &amp; Scan</button>
         </form>
 
-        <h2>Results</h2>
-        <pre id="out">No results yet.</pre>
+        <!-- Loading indicator -->
+        <div id="loader">
+          <div class="spinner"></div>
+          <span id="loader-text">Scanning...</span>
+          <span id="elapsed"></span>
+        </div>
+
+        <div id="results-section">
+          <h2>Results</h2>
+          <pre id="out">No results yet.</pre>
+        </div>
 
         <script>
+        let timerInterval = null;
+
+        function showLoader(message) {
+          const loader = document.getElementById('loader');
+          const loaderText = document.getElementById('loader-text');
+          const elapsed = document.getElementById('elapsed');
+          const outEl = document.getElementById('out');
+
+          loaderText.textContent = message || 'Processing...';
+          elapsed.textContent = '0s';
+          loader.classList.add('active');
+          outEl.textContent = '';
+
+          // Disable all buttons
+          document.querySelectorAll('button').forEach(b => b.disabled = true);
+
+          const start = Date.now();
+          timerInterval = setInterval(() => {
+            const secs = Math.floor((Date.now() - start) / 1000);
+            elapsed.textContent = secs + 's';
+            // Update status messages as time progresses
+            if (secs >= 3 && secs < 10) loaderText.textContent = 'Running pattern engine & sending to NIM LLM...';
+            else if (secs >= 10 && secs < 25) loaderText.textContent = 'Waiting for NIM inference model response...';
+            else if (secs >= 25 && secs < 60) loaderText.textContent = 'Still processing — enriching issues with LLM explanations...';
+            else if (secs >= 60) loaderText.textContent = 'Almost done — large file takes longer...';
+          }, 1000);
+        }
+
+        function hideLoader() {
+          document.getElementById('loader').classList.remove('active');
+          document.querySelectorAll('button').forEach(b => b.disabled = false);
+          if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+        }
+
+        async function doScan(fd, label) {
+          showLoader('Uploading ' + label + '...');
+          try {
+            const res = await fetch('/upload', { method: 'POST', body: fd });
+            const j = await res.json();
+            hideLoader();
+            document.getElementById('out').textContent = JSON.stringify(j, null, 2);
+          } catch (err) {
+            hideLoader();
+            document.getElementById('out').textContent = 'Error: ' + err.message;
+          }
+        }
+
         async function submitFiles(){
           const files = document.getElementById('files').files;
+          if (!files.length) { alert('Please select a file first.'); return; }
           const fd = new FormData();
           for (let f of files) fd.append('files', f);
-          const res = await fetch('/upload', { method: 'POST', body: fd });
-          const j = await res.json();
-          document.getElementById('out').textContent = JSON.stringify(j, null, 2);
+          await doScan(fd, files.length + ' file(s)');
         }
         async function submitArchive(){
           const f = document.getElementById('archive').files[0];
+          if (!f) { alert('Please select an archive first.'); return; }
           const fd = new FormData();
           fd.append('files', f);
-          const res = await fetch('/upload', { method: 'POST', body: fd });
-          const j = await res.json();
-          document.getElementById('out').textContent = JSON.stringify(j, null, 2);
+          await doScan(fd, f.name);
         }
         async function submitPaste(){
           const code = document.getElementById('code').value;
+          if (!code.trim()) { alert('Please paste some code first.'); return; }
           const filename = document.getElementById('pasteFilename').value || 'pasted.py';
           const fd = new FormData();
           fd.append('code', code);
           fd.append('filename', filename);
-          const res = await fetch('/upload', { method: 'POST', body: fd });
-          const j = await res.json();
-          document.getElementById('out').textContent = JSON.stringify(j, null, 2);
+          await doScan(fd, filename);
         }
         async function submitURL(){
           const url = document.getElementById('url').value;
+          if (!url.trim()) { alert('Please enter a URL first.'); return; }
           const fd = new FormData();
           fd.append('url', url);
-          const res = await fetch('/upload', { method: 'POST', body: fd });
-          const j = await res.json();
-          document.getElementById('out').textContent = JSON.stringify(j, null, 2);
+          await doScan(fd, url);
         }
         </script>
       </body>
@@ -158,15 +257,124 @@ async def _fetch_url_content(url: str) -> Optional[bytes]:
 
 
 def _scan_and_pack(filename: str, content: str):
+    """Run Stage-2 engine scan and optionally Stage-3 NIM enrichment.
+
+    When CODEGUARDIAN_LLM_MODE == 'nim' the Reasoner is invoked so that each
+    finding is enriched via the NIM inference model and the knowledge-store
+    uses NIM embeddings for retrieval.  In offline mode we return the raw
+    engine results for fast, deterministic output.
+    """
     try:
         res = engine.scan_code(filename, content)
-        return {
-            "filename": filename,
-            "issue": res.get("issue"),
-            "suggestion": res.get("suggestion"),
-        }
+        all_issues = res.get("issues", [])
+
+        if not all_issues:
+            return {
+                "filename": filename,
+                "issue": res.get("issue"),
+                "suggestion": res.get("suggestion"),
+            }
+
+        # Convert engine issues → Stage-2 format expected by the Reasoner
+        stage2_issues = []
+        lines = content.splitlines()
+        for iss in all_issues:
+            # engine issues have 'issue' and 'suggestion' keys
+            issue_text = iss.get("issue", "")
+            suggestion = iss.get("suggestion", "")
+            # try to find the first relevant line number
+            line_no = iss.get("line")
+            snippet = iss.get("snippet", "")
+            if not line_no:
+                # best-effort: search for a matching line
+                for idx, ln in enumerate(lines, 1):
+                    if _issue_matches_line(issue_text, ln):
+                        line_no = idx
+                        snippet = ln.strip()
+                        break
+            stage2_issues.append({
+                "type": issue_text,
+                "line": line_no,
+                "snippet": snippet,
+                "message": suggestion,
+            })
+
+        # If NIM mode is active, enrich through Stage-3 (inference + embeddings)
+        llm_mode = os.environ.get("CODEGUARDIAN_LLM_MODE", "offline")
+        if llm_mode == "nim":
+            try:
+                enriched = reasoner.enrich({filename: stage2_issues})
+                # persist the report
+                try:
+                    persistence.save_report(filename, enriched.get("summary", {}), enriched)
+                except Exception:
+                    pass
+                return {
+                    "filename": filename,
+                    "enriched": True,
+                    "llm_mode": "nim",
+                    "results": enriched.get("results", {}),
+                    "summary": enriched.get("summary", {}),
+                }
+            except Exception:
+                logger.exception("Stage-3 NIM enrichment failed; returning engine results")
+
+        # Offline / fallback: still enrich through Stage-3 offline templates
+        try:
+            enriched = reasoner.enrich({filename: stage2_issues})
+            try:
+                persistence.save_report(filename, enriched.get("summary", {}), enriched)
+            except Exception:
+                pass
+            return {
+                "filename": filename,
+                "enriched": True,
+                "llm_mode": llm_mode,
+                "results": enriched.get("results", {}),
+                "summary": enriched.get("summary", {}),
+            }
+        except Exception:
+            logger.exception("Stage-3 enrichment failed; returning raw engine results")
+            return {
+                "filename": filename,
+                "issues": all_issues,
+            }
     except Exception as e:
         return {"filename": filename, "error": str(e)}
+
+
+def _issue_matches_line(issue_text: str, line: str) -> bool:
+    """Heuristic: does the engine issue text relate to this source line?"""
+    it = issue_text.lower()
+    ln = line.lower()
+    if "password" in it and ("password" in ln or "passwd" in ln):
+        return True
+    if "api key" in it and ("api_key" in ln or "apikey" in ln):
+        return True
+    if "aws" in it and "akia" in ln:
+        return True
+    if "jwt" in it and "eyj" in ln:
+        return True
+    if "secret" in it and "secret" in ln:
+        return True
+    if "sql" in it and ("select" in ln or "insert" in ln):
+        return True
+    if "eval" in it and "eval" in ln:
+        return True
+    if "pickle" in it and "pickle" in ln:
+        return True
+    if "shell" in it and "shell" in ln:
+        return True
+    if "md5" in it or "sha1" in it or "sha-1" in it:
+        if "md5" in ln or "sha1" in ln:
+            return True
+    if "strcpy" in it and "strcpy" in ln:
+        return True
+    if "system" in it and "system" in ln:
+        return True
+    if "regex" in it and "re." in ln:
+        return True
+    return False
 
 
 @app.post("/upload")
@@ -230,8 +438,9 @@ async def upload(
             except Exception as e:
                 results.append({"filename": name, "error": str(e)})
 
-    logger.info("/upload returning %d result(s) for uploaded files", len(results))
-    return JSONResponse({"results": results})
+    if results:
+        logger.info("/upload returning %d result(s) for uploaded files", len(results))
+        return JSONResponse({"results": results})
 
     # Process pasted code
     if code is not None:
@@ -249,9 +458,9 @@ async def upload(
             text = content.decode("utf-8", errors="ignore")
         except Exception:
             text = ""
-    results.append(_scan_and_pack(url, text))
-    logger.info("/upload returning %d result(s) for fetched URL %s", len(results), url)
-    return JSONResponse({"results": results})
+        results.append(_scan_and_pack(url, text))
+        logger.info("/upload returning %d result(s) for fetched URL %s", len(results), url)
+        return JSONResponse({"results": results})
 
     return JSONResponse({"error": "No input provided"}, status_code=400)
 
@@ -296,22 +505,35 @@ async def analyze(
     results = []
     # uploaded files
     if files:
+        import tempfile, os
         for f in files:
             try:
-                text = await f.read()
-                text = text.decode("utf-8", errors="ignore")
+                data = await f.read()
+                text = data.decode("utf-8", errors="ignore")
             except Exception:
                 continue
-            issues = stage2_parser.analyze_code("uploaded:" + (f.filename or "file"))
-            enriched = req_reasoner.enrich({f.filename or "uploaded": issues})
+            # Write to a temp file so analyze_code can read it from disk
+            fname = f.filename or "uploaded"
+            suffix = os.path.splitext(fname)[1] or ".txt"
+            with tempfile.NamedTemporaryFile(mode="w", suffix=suffix, delete=False) as tf:
+                tf.write(text)
+                tmp_path = tf.name
+            try:
+                issues = stage2_parser.analyze_code(tmp_path)
+            except Exception:
+                issues = []
+            finally:
+                os.unlink(tmp_path)
+            enriched = req_reasoner.enrich({fname: issues})
             # persist
             try:
                 persistence.save_report(f.filename or "uploaded", enriched.get("summary", {}), enriched)
             except Exception:
                 pass
             results.append(enriched)
-    logger.info("/analyze returning %d enriched result(s) for uploaded files", len(results))
-    return JSONResponse({"results": results})
+    if results:
+        logger.info("/analyze returning %d enriched result(s) for uploaded files", len(results))
+        return JSONResponse({"results": results})
 
     # pasted code
     if code is not None:
