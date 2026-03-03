@@ -1,0 +1,17 @@
+1. Kill the server endpoint if it is running
+Get-Process -Name python -ErrorAction SilentlyContinue | Stop-Process -Force; Start-Sleep -Seconds 2
+
+2. To run online llm server, run the following command in the terminal:
+# Online (NIM):
+$env:CODEGUARDIAN_LLM_MODE='nim'; .\.venv\Scripts\python.exe -m uvicorn app.app:app --host 127.0.0.1 --port 8000
+
+
+To check if the llm status is healthy, you can run the following command in the terminal:
+Start-Sleep -Seconds 3; .\.venv\Scripts\python.exe -c "import requests; print(requests.get('http://127.0.0.1:8000/health').json())"
+
+
+
+
+3. To run the offline server, run the following command in the terminal:
+# Offline:
+$env:CODEGUARDIAN_LLM_MODE='offline'; .\.venv\Scripts\python.exe -m uvicorn app.app:app --host 127.0.0.1 --port 8000

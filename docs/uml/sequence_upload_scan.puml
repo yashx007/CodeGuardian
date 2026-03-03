@@ -1,0 +1,46 @@
+@startuml
+actor User
+participant "Browser UI" as UI
+participant "FastAPI App\n(app/app.py)" as App
+participant "Engine (Stage2)\nagent.engine" as Engine
+participant "Reasoner\nagent.reasoning" as Reasoner
+participant "LLMClient\nagent.llm_client" as LLM
+participant "NIM/SageMaker\ninference endpoint" as LLMService
+database "SQLite\ndata/reports.db" as DB
+User -> UI: select files / paste / url
+UI -> App: POST /upload (multipart FormData)
+App -> App: extract archives, decode text
+App -> Engine: engine.scan_code(filename, content)
+Engine --> App: issues (list)
+App -> Reasoner: reasoner.enrich({filename: issues})
+Reasoner -> LLM: LLMClient.explain(issue, context)
+alt mode == nim or sagemaker
+  LLM -> LLMService: HTTP inference request (prompt)
+  LLMService --> LLM: JSON response (text)
+else offline
+  LLM -> LLM: _explain_offline(issue)
+end
+LLM --> Reasoner: {explanation, fix, references}
+Reasoner --> App: enriched report
+App -> DB: persistence.save_report(filename, summary, payload)
+DB --> App: save OK
+App --> UI: JSONResponse({"results":[...]})
+@startuml
+actor User
+participant Browser
+participant WebApp
+participant Engine
+participant NIM
+database DB
+
+User -> Browser: select files and submit
+Browser -> WebApp: POST /upload
+WebApp -> Engine: scan_code(files)
+Engine -> Engine: static_analysis()
+Engine -> NIM: explain(prompt, context)
+NIM --> Engine: explanation
+Engine -> DB: save_report(report)
+Engine --> WebApp: result
+WebApp --> Browser: show result
+
+@enduml

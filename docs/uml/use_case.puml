@@ -1,0 +1,19 @@
+@startuml
+left to right direction
+actor User
+actor "CI / Bot" as Bot
+rectangle WebApp {
+  User --> (Upload Code)
+  User --> (View Reports)
+  Bot --> (Trigger Scan)
+}
+rectangle Engine {
+  (Scan Code)
+  (Explain Findings)
+}
+
+(Upload Code) --> (Scan Code)
+(Scan Code) --> (Explain Findings)
+(Explain Findings) --> (View Reports)
+
+@enduml

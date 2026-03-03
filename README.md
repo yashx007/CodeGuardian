@@ -303,3 +303,38 @@ Special thanks to:
 
 > *"CodeGuardian — making secure coding autonomous, one commit at a time."*
 
+
+## Stage 5 — Testing, Evaluation & Final Setup (College Demo)
+
+This repository includes a lightweight Stage 5 toolkit to help you prepare a clean demo submission:
+
+- Functional tests: run the FastAPI app and exercise `/analyze`, `/analyze_json`, `/summary`, and `/chat` (if available).
+- Offline evaluation: a small script that scans a set of sample files and produces `evaluation/evaluation_results.json`.
+- Lightweight logging: the app writes run-level logs to `logs/app.log`.
+
+Quick commands
+
+1. Start the server (no --reload recommended for demo):
+
+```powershell
+python -m uvicorn app.app:app --host 127.0.0.1 --port 8000 --log-level info
+```
+
+2. Run the offline evaluation script (this does not call external LLMs by default):
+
+```powershell
+python scripts/evaluate.py
+```
+
+The evaluation output will be written to `evaluation/evaluation_results.json`.
+
+Logging
+
+- App logs are written to `logs/app.log` (the folder is gitignored). Each analysis run records a summary line so you can show request history during a demo.
+
+CI
+
+- GitHub Actions runs unit tests; ensure your repository shows a green check on the main/PR to demonstrate stability.
+
+If you want, I can also add a short example `post_request.py` that calls `/analyze_json` for the demo, or wire the evaluation script to produce a simple accuracy table (requires manual labels).
+

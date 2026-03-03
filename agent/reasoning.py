@@ -79,16 +79,54 @@ def _sanitize_results(results: Dict[str, List[Dict[str, Any]]]) -> Dict[str, int
 
 def _map_severity(issue_type: str) -> str:
     t = (issue_type or "").lower()
-    if "secret" in t or "hardcoded" in t:
+
+    # High severity
+    if any(k in t for k in (
+        "secret", "hardcoded", "password", "api key", "aws access key",
+        "jwt", "private key", "credential",
+    )):
         return "High"
-    if "sql" in t or "injection" in t:
+    if any(k in t for k in ("sql", "injection", "command injection", "rce")):
         return "High"
-    if "deprecated" in t or "deprecated hash" in t:
+    if any(k in t for k in ("deserialization", "pickle", "marshal", "yaml")):
+        return "High"
+    if any(k in t for k in ("eval", "exec", "code injection")):
+        return "High"
+    if "xss" in t or "innerhtml" in t or "document.write" in t:
+        return "High"
+    if "path traversal" in t:
+        return "High"
+
+    # Medium severity
+    if any(k in t for k in (
+        "deprecated", "hash", "md5", "sha1", "sha-1",
+    )):
+        return "Medium"
+    if any(k in t for k in ("subprocess", "shell", "os.system", "child_process", "system")):
+        return "Medium"
+    if "tls" in t or "verify" in t or "certificate" in t:
+        return "Medium"
+    if "debug" in t:
+        return "Medium"
+    if "random" in t or "insecure random" in t:
+        return "Medium"
+    if "format string" in t or "printf" in t:
+        return "Medium"
+    if "tempfile" in t or "mktemp" in t:
+        return "Medium"
+    if "dangerous" in t:
         return "Medium"
     if "insecure" in t or "suspicious" in t:
         return "Medium"
+
+    # Low severity
     if "regex" in t:
         return "Low"
+    if "assert" in t:
+        return "Low"
+    if "import" in t:
+        return "Low"
+
     return "Medium"
 
 
